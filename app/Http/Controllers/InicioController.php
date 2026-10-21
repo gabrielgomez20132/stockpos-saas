@@ -23,7 +23,7 @@ class InicioController extends Controller
                 'ventas' => $d['cant_ventas'],
                 'total' => round($d['ingXmercaderias'] - $d['descuentos'], 2),
                 'efectivo' => $d['total_efec'],
-                'pendientes' => Order::delTurno()->where('completada', 0)->where('monto', '>', 0)->count(),
+                'pendientes' => Order::delTurno()->sinCobrar()->count(),
                 'ganancia' => $u->hasPermission('control') ? round($d['ganXmercaderias'] + $d['ganXservicios'], 2) : null,
             ];
         }

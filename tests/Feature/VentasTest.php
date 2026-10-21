@@ -197,9 +197,16 @@ class VentasTest extends TestCase
         $this->abrirCaja();
         $a = $this->nuevaVenta();
         \App\Models\Order::whereKey($a->id)->update(['created_at' => '2026-01-01 10:00:00']);
+        // la vacia se reusa, pero con la fecha de ahora
         $b = $this->nuevaVenta();
-        $this->assertNotSame($a->id, $b->id);
+        $this->assertSame($a->id, $b->id);
         $this->assertTrue($b->created_at->isToday());
+        // con productos cargados, la siguiente es un registro nuevo
+        $p = $this->producto();
+        $this->postJson("/ventas/{$b->id}/items", ['product_id' => $p->id, 'cantidad' => 1])->assertOk();
+        $c = $this->nuevaVenta();
+        $this->assertNotSame($b->id, $c->id);
+        $this->assertTrue($c->created_at->isToday());
     }
 
     public function test_cierre_de_caja_guarda_foto_y_pasa_pendientes_al_turno_siguiente(): void

@@ -31,6 +31,16 @@ class Ventas
     {
         $this->exigirCaja();
 
+        // si ya tiene una venta abierta y vacia (toco "Nueva venta" y no cargo nada), se reusa
+        $vacia = Order::where('id_encargado', $encargado->id)->where('deHoy', 1)->where('completada', 0)->where('id_type', Order::TIPO_PRODUCTOS)
+            ->whereDoesntHave('productos')->whereDoesntHave('servicios')->latest('id')->first();
+        if ($vacia) {
+            $vacia->forceFill(['id_cliente' => User::ID_CLIENTE_GENERAL, 'canal_id' => 1, 'id_forma_pago' => FormasPago::EFECTIVO, 'monto' => 0, 'descuento' => 0, 'fiado' => 0,
+                'created_at' => now()])->save(); // con la fecha y hora de ahora (no la de cuando se toco el boton)
+
+            return $vacia;
+        }
+
         return Order::create([
             'id_encargado' => $encargado->id,
             'id_cliente' => User::ID_CLIENTE_GENERAL,

@@ -137,7 +137,7 @@ class Caja
                     'cantidad' => round((float) $p->cantidad, 3), 'total' => round((float) $p->total, 2)])
                 ->all();
 
-            $pendientes = Order::where('deHoy', 1)->where('completada', 0)->where('monto', '>', 0);
+            $pendientes = Order::where('deHoy', 1)->sinCobrar();
             $r['pendientes_cant'] = (clone $pendientes)->count();
             $r['pendientes_monto'] = round((float) (clone $pendientes)->sum('monto'), 2);
 

@@ -58,4 +58,34 @@ class ReportesTest extends TestCase
         $this->assertEquals(0, $r['totales']['ticket']);
         $this->assertSame(0.0, (float) $r['pagos'][0]['porcentaje']);
     }
+
+    public function test_resumen_de_ventas_del_turno(): void
+    {
+        $this->actingAs($this->admin);
+        $this->abrirCaja();
+        $p = $this->producto(['nombre' => 'Coca', 'monto' => 1000, 'costo' => 600, 'quedan' => 100]);
+        $q = $this->producto(['nombre' => 'Alfajor', 'monto' => 500, 'costo' => 200, 'quedan' => 100]);
+        $cli = $this->cliente('Ana');
+        $this->venta([[$p, 3]], ['medios' => ['efectivo']]);                                     // 3000
+        $this->venta([[$p, 1], [$q, 2]], ['medios' => ['qr'], 'descuento_monto' => 200]);         // 2000 - 200
+        $this->post('/ventas');
+        $o = Order::latest('id')->first();
+        $this->postJson("/ventas/{$o->id}/items", ['product_id' => $q->id, 'cantidad' => 4])->assertOk();
+        $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => $cli->id, 'canal_id' => 1, 'medios' => ['fiado']])->assertSessionHasNoErrors(); // 2000 fiado
+        $this->post('/ventas'); // sin cobrar, con un producto
+        $abierta = Order::latest('id')->first();
+        $this->postJson("/ventas/{$abierta->id}/items", ['product_id' => $p->id, 'cantidad' => 2])->assertOk();
+
+        $this->get('/ventas')->assertOk()->assertInertia(fn ($pg) => $pg
+            ->where('resumen.ventas', 3)->where('resumen.bruto', 7000)->where('resumen.descuentos', 200)->where('resumen.neto', 6800)
+            ->where('resumen.ticket', 2266.67)->where('resumen.fiado', 2000)->where('resumen.cobrado', 4800)
+            ->where('resumen.ganancia', 7000 - (4 * 600 + 6 * 200) - 200)->where('resumen.productos', 2)
+            ->where('resumen.sinCobrar.ventas', 1)->where('resumen.sinCobrar.total', 2000)
+            ->has('resumen.medios', 3)->where('resumen.top.0.nombre', 'Coca')->where('resumen.top.0.cantidad', 4)
+            ->where('resumen.encargados.0.ventas', 3)->where('resumen.pico.ventas', 3)->etc());
+
+        // un empleado (sin permiso de caja) no ve la ganancia
+        $this->actingAs($this->encargado('Empleado'));
+        $this->get('/ventas')->assertInertia(fn ($pg) => $pg->where('resumen.ganancia', null)->where('resumen.neto', 6800)->etc());
+    }
 }

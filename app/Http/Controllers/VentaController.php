@@ -48,8 +48,69 @@ class VentaController extends Controller
             'filtro' => $rango ? ['desde' => $rango[0]->toDateString(), 'hasta' => $rango[1]->toDateString()] : null,
             'cajaCerrada' => false,
             'totales' => ['cantidad' => $cobradas->count(), 'total' => round($cobradas->sum(fn ($v) => $v->monto - $v->descuento), 2)],
+            'resumen' => $this->resumen($rango, $request->user()->hasPermission('control')),
             'puedeExportar' => $request->user()->hasPermission('control'),
         ]);
+    }
+
+    /** numeros del periodo (turno o rango): todo sumado en la base, sin el limite del listado */
+    private function resumen(?array $rango, bool $verGanancia): array
+    {
+        $ordenes = fn () => tap(SucursalActual::filtrar(DB::table('orders'), 'orders')->where('orders.id_type', Order::TIPO_PRODUCTOS),
+            fn ($q) => $rango ? $q->whereBetween('orders.created_at', $rango) : $q->where('orders.deHoy', 1));
+        $cobradas = fn () => $ordenes()->where('orders.completada', 1);
+
+        $t = $cobradas()->selectRaw('COUNT(*) as n, COALESCE(SUM(monto),0) as bruto, COALESCE(SUM(descuento),0) as descuentos, COALESCE(SUM(fiado),0) as fiado,
+            MIN(created_at) as primera, MAX(created_at) as ultima')->first();
+        $neto = round((float) $t->bruto - (float) $t->descuentos, 2);
+        $n = (int) $t->n;
+
+        $medios = [];
+        foreach (FormasPago::COLUMNAS + ['fiado' => 'fiado'] as $m => $col) {
+            $r = $cobradas()->where("orders.$col", '>', 0)->selectRaw("COUNT(*) as n, SUM($col) as total")->first();
+            if ((int) $r->n > 0) {
+                $medios[] = ['medio' => $m, 'nombre' => FormasPago::ETIQUETAS[$m], 'total' => round((float) $r->total, 2), 'ventas' => (int) $r->n];
+            }
+        }
+
+        $fact = $cobradas()->where('orders.idAfipFct', '>', 0)->where(fn ($w) => $w->whereNull('orders.idAfipNdc')->orWhere('orders.idAfipNdc', 0))
+            ->selectRaw('COUNT(*) as n, COALESCE(SUM(monto - descuento),0) as total')->first();
+
+        $sinCobrar = $ordenes()->where('orders.completada', 0)
+            ->where(fn ($w) => $w->whereExists(fn ($e) => $e->selectRaw('1')->from('orders_products')->whereColumn('orders_products.id_order', 'orders.id'))
+                ->orWhereExists(fn ($e) => $e->selectRaw('1')->from('orders_services')->whereColumn('orders_services.id_order', 'orders.id')))
+            ->selectRaw('COUNT(*) as n, COALESCE(SUM(monto),0) as total')->first();
+
+        $prod = $cobradas()->join('orders_products as op', 'op.id_order', '=', 'orders.id');
+        $p = (clone $prod)->selectRaw('COALESCE(SUM(op.cantidad * op.monto),0) as ingreso, COALESCE(SUM(op.cantidad * op.costo_x_uni),0) as costo, COUNT(DISTINCT op.id_producto) as distintos')->first();
+        $top = (clone $prod)->leftJoin('products as p', 'p.id', '=', 'op.id_producto')->leftJoin('product_categories as pc', 'pc.id', '=', 'p.id_categoria')
+            ->groupBy('op.id_producto', 'p.nombre', 'pc.unidad')
+            ->selectRaw('p.nombre, pc.unidad, SUM(op.cantidad) as cantidad, SUM(op.cantidad * op.monto) as total')
+            ->orderByDesc('total')->limit(5)->get()
+            ->map(fn ($r) => ['nombre' => $r->nombre ?? 'Producto eliminado', 'unidad' => $r->unidad, 'cantidad' => round((float) $r->cantidad, 3), 'total' => round((float) $r->total, 2)]);
+
+        $porEncargado = $cobradas()->leftJoin('users as e', 'e.id', '=', 'orders.id_encargado')->groupBy('orders.id_encargado', 'e.nombre')
+            ->selectRaw('e.nombre, COUNT(*) as ventas, SUM(orders.monto - orders.descuento) as total')->orderByDesc('total')->get()
+            ->map(fn ($r) => ['nombre' => $r->nombre ?? '—', 'ventas' => (int) $r->ventas, 'total' => round((float) $r->total, 2)]);
+
+        // hora con mas ventas (se agrupa en PHP: funciona igual en MySQL y SQLite)
+        $horas = $cobradas()->pluck('created_at')->countBy(fn ($f) => (int) substr((string) $f, 11, 2));
+        $pico = $horas->isEmpty() ? null : ['hora' => $horas->sortDesc()->keys()->first(), 'ventas' => $horas->max()];
+
+        $ganancia = round((float) $t->bruto - (float) $p->costo - (float) $t->descuentos, 2); // lo vendido (productos + otros conceptos) - costo - descuentos
+
+        return [
+            'ventas' => $n, 'bruto' => round((float) $t->bruto, 2), 'descuentos' => round((float) $t->descuentos, 2), 'neto' => $neto,
+            'ticket' => $n ? round($neto / $n, 2) : 0, 'fiado' => round((float) $t->fiado, 2),
+            'cobrado' => round($neto - (float) $t->fiado, 2),
+            'facturadas' => ['ventas' => (int) $fact->n, 'total' => round((float) $fact->total, 2)],
+            'sinCobrar' => ['ventas' => (int) $sinCobrar->n, 'total' => round((float) $sinCobrar->total, 2)],
+            'ganancia' => $verGanancia ? $ganancia : null,
+            'margen' => $verGanancia && $neto > 0 ? round($ganancia / $neto * 100, 1) : null,
+            'productos' => (int) $p->distintos,
+            'medios' => $medios, 'top' => $top, 'encargados' => $porEncargado, 'pico' => $pico,
+            'primera' => $t->primera, 'ultima' => $t->ultima,
+        ];
     }
 
     private function consulta()
@@ -63,6 +124,8 @@ class VentaController extends Controller
             ->select('orders.id', 'orders.monto', 'orders.descuento', 'orders.fiado', 'orders.completada', 'orders.created_at',
                 'orders.idAfipFct', 'orders.idAfipNdc', 'orders.id_forma_pago',
                 'c.nombre as cliente', 'e.nombre as encargado', 'f.nombre as forma_pago', 'k.nombre as canal',
+                DB::raw('(orders.completada = 0 AND NOT EXISTS (SELECT 1 FROM orders_products op WHERE op.id_order = orders.id)
+                    AND NOT EXISTS (SELECT 1 FROM orders_services os WHERE os.id_order = orders.id)) as vacia'),
                 ...array_map(fn ($c) => 'orders.'.$c, Order::COLUMNAS_PAGO));
     }
 

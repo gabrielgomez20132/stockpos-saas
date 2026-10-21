@@ -77,6 +77,12 @@ class Order extends Model
             ->withPivot('monto_aplicado')->withTimestamps();
     }
 
+    /** sin cobrar = abierta y con al menos un producto u otro concepto (las vacias no cuentan) */
+    public function scopeSinCobrar(Builder $q): Builder
+    {
+        return $q->where('completada', 0)->where(fn ($w) => $w->whereHas('productos')->orWhereHas('servicios'));
+    }
+
     public function scopeDelTurno(Builder $q): Builder
     {
         return $q->where('deHoy', 1);
