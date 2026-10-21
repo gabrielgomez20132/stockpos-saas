@@ -45,6 +45,8 @@ class HandleInertiaRequests extends Middleware
                 'presupuestos' => (bool) Configuracion::get('presupuestos_habilitadas', false),
                 'remitos' => (bool) Configuracion::get('remitos_habilitadas', false),
                 'combos' => Configuracion::combos(),
+                'afip' => Configuracion::afip(),
+                'panaderia' => \App\Support\Panaderia::paraPantalla(),
             ],
             'sucursal' => fn () => $user && SucursalActual::habilitado() ? [
                 'id' => SucursalActual::id(),

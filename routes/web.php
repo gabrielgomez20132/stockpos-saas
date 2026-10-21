@@ -20,6 +20,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\PresupuestoController;
+use App\Http\Controllers\ProduccionController;
 use App\Http\Controllers\RemitoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
@@ -90,16 +91,19 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     // ------------------------------------------------------- facturacion
     // emitir desde la venta: cualquier encargado (igual que control-soft)
-    Route::post('afip/facturar/{order}', [AfipController::class, 'facturar'])->name('afip.facturar');
-    Route::post('afip/nota-credito/{order}', [AfipController::class, 'notaCredito'])->name('afip.ndc');
+    // (se habilita en Configuracion; los comprobantes ya emitidos se pueden ver siempre)
+    Route::post('afip/facturar/{order}', [AfipController::class, 'facturar'])->middleware('modulo:afip')->name('afip.facturar');
+    Route::post('afip/nota-credito/{order}', [AfipController::class, 'notaCredito'])->middleware('modulo:afip')->name('afip.ndc');
     Route::get('afip/comprobante/{afip}', [AfipController::class, 'ver'])->name('afip.ver');
 
-    Route::middleware('permiso:afip')->prefix('afip')->name('afip.')->group(function () {
+    Route::middleware(['permiso:afip', 'modulo:afip'])->prefix('afip')->name('afip.')->group(function () {
         Route::get('/', [AfipController::class, 'index'])->name('index');
         Route::post('marcar-pagadas', [AfipController::class, 'marcarPagadas'])->name('pagadas');
+    });
+    Route::post('afip/configuracion/logo', [AfipConfigController::class, 'logo'])->middleware('permiso:afip-config')->name('afip.config.logo');
+    Route::middleware(['permiso:afip-config', 'modulo:afip'])->prefix('afip')->name('afip.')->group(function () {
         Route::get('configuracion', [AfipConfigController::class, 'show'])->name('config');
         Route::put('configuracion', [AfipConfigController::class, 'guardar'])->name('config.guardar');
-        Route::post('configuracion/logo', [AfipConfigController::class, 'logo'])->name('config.logo');
         Route::post('configuracion/{ambiente}/credenciales', [AfipConfigController::class, 'credenciales'])->whereIn('ambiente', ['homologacion', 'produccion'])->name('config.credenciales');
         Route::post('configuracion/{ambiente}/csr', [AfipConfigController::class, 'csr'])->whereIn('ambiente', ['homologacion', 'produccion'])->name('config.csr');
         Route::post('configuracion/probar', [AfipConfigController::class, 'probar'])->name('config.probar');
@@ -178,6 +182,11 @@ Route::middleware(['auth', 'staff'])->group(function () {
         Route::delete('configuracion/valores/{valor}', [ConfiguracionController::class, 'borrarValor'])->name('atributos.valores.destroy');
         Route::put('configuracion/listas-precios', [ConfiguracionController::class, 'listasPrecios'])->name('configuracion.listas');
         Route::put('configuracion/presupuestos', [ConfiguracionController::class, 'presupuestos'])->name('configuracion.presupuestos');
+        Route::put('configuracion/panaderia', [ConfiguracionController::class, 'panaderia'])->name('configuracion.panaderia');
+        Route::post('configuracion/panaderia/probar', [ConfiguracionController::class, 'probarBalanza'])->name('configuracion.balanza');
+        Route::put('configuracion/afip', [ConfiguracionController::class, 'afip'])->name('configuracion.afip');
+        Route::put('configuracion/negocio', [ConfiguracionController::class, 'negocio'])->name('configuracion.negocio');
+        Route::post('configuracion/logo', [AfipConfigController::class, 'logo'])->name('configuracion.logo');
         Route::put('configuracion/combos', [ConfiguracionController::class, 'combos'])->name('configuracion.combos');
         Route::put('configuracion/remitos', [ConfiguracionController::class, 'remitos'])->name('configuracion.remitos');
         Route::put('configuracion/multisucursal', [ConfiguracionController::class, 'multisucursal'])->name('configuracion.multisucursal');
@@ -212,6 +221,14 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::get('{transferencia}', [TransferenciaController::class, 'show'])->name('show');
         });
 
+    });
+
+    // panaderia: produccion del dia
+    Route::middleware(['permiso:produccion', 'modulo:panaderia_produccion'])->prefix('produccion')->name('produccion.')->group(function () {
+        Route::get('/', [ProduccionController::class, 'index'])->name('index');
+        Route::get('productos', [ProduccionController::class, 'productos'])->name('productos');
+        Route::post('hornear', [ProduccionController::class, 'hornear'])->name('hornear');
+        Route::post('cerrar', [ProduccionController::class, 'cerrar'])->name('cerrar');
     });
 
     // presupuestos (solo se imprimen) y remitos de entrega

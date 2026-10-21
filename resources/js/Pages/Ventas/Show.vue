@@ -15,6 +15,7 @@ import FacturarModal from '@/Components/FacturarModal.vue';
 import http, { mensajeError } from '@/lib/http';
 import { toast, toastError } from '@/lib/toast';
 import { confirmar } from '@/lib/confirmar';
+import { importe as importeTexto } from '@/lib/balanza';
 import { plata, cantidad, unidad, numero, fecha, hora } from '@/lib/formato';
 
 const props = defineProps({
@@ -32,6 +33,11 @@ const editable = computed(() => !props.venta.completada);
 
 // ------------------------------------------------------------ carga de productos
 const cant = ref('1');
+// panaderia: venta por importe ("dame $1.500 de pan")
+const porImporte = ref(false);
+const puedeImporte = computed(() => !!pagina.props.modulos?.panaderia?.importe);
+function alternarImporte() { porImporte.value = !porImporte.value; cant.value = porImporte.value ? '' : '1'; nextTick(() => cantRef.value?.focus()); }
+const cantRef = ref(null);
 const codigo = ref('');
 const codigoRef = ref(null);
 const sugerencias = ref([]);
@@ -63,12 +69,14 @@ watch(codigo, (v) => {
 });
 
 async function agregar(producto = null) {
-    const c = numero(cant.value);
-    if (!c || c <= 0) return toastError('La cantidad tiene que ser mayor a cero.');
+    const imp = porImporte.value ? importeTexto(cant.value) : null;
+    const c = porImporte.value ? null : numero(cant.value);
+    if (porImporte.value ? !imp || imp <= 0 : !c || c <= 0) return toastError(porImporte.value ? 'Escribí el importe (ej: 1500).' : 'La cantidad tiene que ser mayor a cero.');
     if (!producto && !codigo.value.trim()) return;
+    const cuanto = porImporte.value ? { importe: String(cant.value).trim() } : { cantidad: c };
     ocupado.value = true;
     try {
-        const r = await http.post(`/ventas/${props.venta.id}/items`, producto ? { [producto.tipo === 'combo' ? 'combo_id' : 'product_id']: producto.id, cantidad: c } : { codigo: codigo.value.trim(), cantidad: c });
+        const r = await http.post(`/ventas/${props.venta.id}/items`, producto ? { [producto.tipo === 'combo' ? 'combo_id' : 'product_id']: producto.id, ...cuanto } : { codigo: codigo.value.trim(), ...cuanto });
         if (r.data.elegir) {
             elegir.value = r.data.elegir;
             return;
@@ -76,6 +84,7 @@ async function agregar(producto = null) {
         aplicar(r);
         codigo.value = '';
         cant.value = '1';
+        porImporte.value = false;
         sugerencias.value = [];
         elegir.value = [];
     } catch (e) {
@@ -280,10 +289,14 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
             <!-- carga -->
             <form class="panel p-4" autocomplete="off" @submit.prevent="agregar()">
                 <div class="flex gap-2">
-                    <label class="w-20 shrink-0 sm:w-24">
-                        <span class="etiqueta">Cant.</span>
-                        <input v-model="cant" inputmode="decimal" class="campo text-center text-lg font-semibold" @focus="$event.target.select()" />
-                    </label>
+                    <div class="shrink-0" :class="puedeImporte ? 'w-28 sm:w-32' : 'w-20 sm:w-24'">
+                        <span class="etiqueta flex items-center justify-between gap-1">{{ porImporte ? 'Importe $' : 'Cant.' }}
+                            <button v-if="puedeImporte" type="button" class="rounded-md px-1.5 text-xs font-bold" :class="porImporte ? 'bg-cartel-500 text-petroleo-950' : 'bg-petroleo-100 text-petroleo-700 dark:bg-petroleo-800 dark:text-petroleo-200'"
+                                :title="porImporte ? 'Volver a cantidad' : 'Vender por importe (ej: $1.500 de pan)'" :aria-pressed="porImporte" @click="alternarImporte">{{ porImporte ? 'Cant.' : '$' }}</button>
+                        </span>
+                        <input ref="cantRef" v-model="cant" inputmode="decimal" class="campo text-center text-lg font-semibold" :class="{ 'border-cartel-500 ring-2 ring-cartel-300/50': porImporte }"
+                            :placeholder="porImporte ? '1500' : ''" :aria-label="porImporte ? 'Importe en pesos' : 'Cantidad'" @focus="$event.target.select()" />
+                    </div>
                     <div class="relative min-w-0 flex-1">
                         <span class="etiqueta">Producto</span>
                         <div class="relative">
@@ -495,7 +508,7 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
                 </template>
                 <template v-if="!venta.factura">
                     <Boton v-if="afip.listo && venta.monto > 0" variante="oscuro" class="w-full" :icono="FileText" @click="factAbierto = true">Facturar</Boton>
-                    <p v-else-if="!afip.listo" class="text-center text-xs text-petroleo-500">La facturación electrónica no está configurada.</p>
+                    <p v-else-if="!afip.listo && afip.habilitada" class="text-center text-xs text-petroleo-500">La facturación electrónica no está configurada.</p>
                 </template>
                 <template v-else>
                     <Boton class="w-full" :icono="FileText" @click="abrirVentana(`/afip/comprobante/${venta.factura.id}`)">Ver factura</Boton>

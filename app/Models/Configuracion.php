@@ -53,6 +53,20 @@ class Configuracion extends Model
         return $v === null ? Combo::query()->exists() : (bool) $v;
     }
 
+    /** facturacion AFIP: si nunca se toco el interruptor, queda habilitada si ya se uso (comprobantes o CUIT cargado) */
+    public static function afip(): bool
+    {
+        $v = static::get('afip_habilitada');
+        if ($v !== null) {
+            return (bool) $v;
+        }
+        try {
+            return Afip::query()->exists() || AfipConfig::query()->whereNotNull('cuit')->where('cuit', '!=', '')->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public static function limpiarCache(): void
     {
         self::$cache = [];

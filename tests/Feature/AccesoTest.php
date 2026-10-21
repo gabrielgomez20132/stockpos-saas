@@ -60,6 +60,7 @@ class AccesoTest extends TestCase
 
     public function test_super_admin_ve_todas_las_pantallas(): void
     {
+        \App\Models\Configuracion::set('afip_habilitada', true);
         $this->actingAs($this->admin);
         $this->abrirCaja();
         $p = $this->producto();

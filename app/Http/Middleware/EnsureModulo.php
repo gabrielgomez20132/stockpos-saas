@@ -11,13 +11,15 @@ use Symfony\Component\HttpFoundation\Response;
 /** El modulo tiene que estar habilitado en Configuracion. */
 class EnsureModulo
 {
-    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal', 'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos', 'combos' => 'Combos y promos'];
+    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal', 'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos', 'combos' => 'Combos y promos', 'afip' => 'Facturación AFIP', 'panaderia_produccion' => 'Panadería: producción del día'];
 
     public function handle(Request $request, Closure $next, string $modulo): Response
     {
         $on = match ($modulo) {
             'multisucursal' => SucursalActual::habilitado(),
             'combos' => Configuracion::combos(),
+            'afip' => Configuracion::afip(),
+            'panaderia_produccion' => \App\Support\Panaderia::opcion('produccion'),
             default => (bool) Configuracion::get($modulo.'_habilitadas', false),
         };
         if (! $on) {

@@ -7,6 +7,7 @@ import { estado, catalogo, guardarVenta, ventas as pendientesDb, descartar, sinc
 import { toast, toastError } from '@/lib/toast';
 import { plata, cantidad, numero } from '@/lib/formato';
 import { confirmar } from '@/lib/confirmar';
+import { leerEtiqueta, codigosPlu, importe as importeTexto } from '@/lib/balanza';
 
 const emit = defineEmits(['cerrar']);
 const page = usePage();
@@ -44,7 +45,19 @@ function sinStock(i, quiere) {
     toastError(i.stock > 0 ? `De ${i.nombre} solo quedan ${fmtCant(i, i.stock)} en stock.` : `${i.nombre} no tiene stock.`);
     return false;
 }
-function agregar(p, cant = 1) {
+// panaderia (la configuracion viaja con el catalogo guardado)
+const pan = computed(() => cat.value?.panaderia ?? null);
+const imp = ref(''); // venta por importe
+function agregar(p, cant = 1, deEtiqueta = false) {
+    if (!deEtiqueta && pan.value?.importe && String(imp.value).trim()) {
+        const v = importeTexto(imp.value);
+        if (!v || v <= 0) return toastError('El importe tiene que ser mayor a cero.');
+        if (!p.f) return toastError(`${p.n} se vende por unidad: la venta por importe es para productos por peso (Kg).`);
+        if (!(p.m > 0)) return toastError(`${p.n} no tiene precio.`);
+        cant = Math.round((v / p.m) * 1000) / 1000;
+        if (cant < 0.001) return toastError('Ese importe no llega a 1 gramo.');
+        imp.value = '';
+    }
     const ya = items.value.find((i) => i.id === p.id);
     const nueva = Math.round(((ya ? numero(ya.cantidad) : 0) + cant) * 1000) / 1000;
     if (nueva > p.q + 1e-9) {
@@ -59,6 +72,19 @@ function agregar(p, cant = 1) {
     nextTick(() => buscador.value?.focus());
 }
 function enter() {
+    const t = q.value.trim();
+    if (pan.value?.balanza && cat.value && !cat.value.productos.some((p) => p.c === t)) {
+        let e = null;
+        try { e = leerEtiqueta(t, pan.value.etiqueta); } catch (err) { q.value = ''; return toastError(err.message); }
+        if (e) {
+            const codigos = codigosPlu(e.plu);
+            const p = cat.value.productos.find((x) => codigos.includes(x.c));
+            q.value = '';
+            if (!p) return toastError(`La etiqueta es del producto con código ${e.plu.replace(/^0+/, '')}, pero no está en el catálogo guardado.`);
+            const cant = e.tipo === 'precio' ? Math.round((e.valor / p.m) * 1000) / 1000 : e.valor;
+            return agregar(p, cant, true);
+        }
+    }
     if (resultados.value.length === 1) agregar(resultados.value[0]);
     else if (resultados.value.length && resultados.value[0].c.toLowerCase() === q.value.trim().toLowerCase()) agregar(resultados.value[0]);
     else if (q.value.trim()) toastError('No encontré ese código en el catálogo guardado.');
@@ -169,8 +195,13 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
         <div v-else class="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[1fr_22rem]">
             <section class="panel flex min-h-0 flex-col overflow-visible">
                 <div class="relative border-b border-petroleo-100 p-3 dark:border-petroleo-800">
-                    <Search class="pointer-events-none absolute top-1/2 left-6 size-4 -translate-y-1/2 text-petroleo-300" />
-                    <input ref="buscador" v-model="q" class="campo pl-9 text-lg" placeholder="Escaneá o escribí el producto" @keydown.enter.prevent="enter" />
+                    <div class="flex gap-2">
+                        <input v-if="pan?.importe" v-model="imp" inputmode="decimal" class="campo w-28 shrink-0 text-center text-lg" placeholder="$ importe" aria-label="Vender por importe en pesos (opcional)" title="Opcional: escribí el importe (ej: 1500) y después el producto por peso" />
+                        <div class="relative min-w-0 flex-1">
+                            <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-petroleo-300" />
+                            <input ref="buscador" v-model="q" class="campo pl-9 text-lg" placeholder="Escaneá o escribí el producto" @keydown.enter.prevent="enter" />
+                        </div>
+                    </div>
                     <ul v-if="resultados.length" class="absolute inset-x-3 top-full z-20 mt-1 max-h-80 divide-y divide-petroleo-50 overflow-y-auto rounded-xl border border-petroleo-100 bg-white shadow-xl dark:divide-petroleo-800 dark:border-petroleo-700 dark:bg-petroleo-900">
                         <li v-for="p in resultados" :key="p.id">
                             <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-petroleo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-petroleo-800" :disabled="p.q <= 0" @click="agregar(p)">

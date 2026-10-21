@@ -31,6 +31,7 @@ class OfflineController extends Controller
             'sucursal' => SucursalActual::id(),
             'usuario' => $request->user()->id,
             'productos' => $productos,
+            'panaderia' => \App\Support\Panaderia::paraPantalla(),
         ]);
     }
 

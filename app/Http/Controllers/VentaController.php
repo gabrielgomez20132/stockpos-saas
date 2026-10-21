@@ -16,6 +16,7 @@ use App\Services\Ventas;
 use App\Support\Dinero;
 use App\Support\Exportador;
 use App\Support\FormasPago;
+use App\Support\Panaderia;
 use App\Support\SucursalActual;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -100,7 +101,8 @@ class VentaController extends Controller
             ],
             'items' => $this->listaItems($order),
             'afip' => [
-                'listo' => $cfg->listo(),
+                'habilitada' => $afipOn = \App\Models\Configuracion::afip(),
+                'listo' => $afipOn && $cfg->listo(),
                 'monotributo' => $cfg->esMonotributo(),
             ],
         ];
@@ -171,29 +173,60 @@ class VentaController extends Controller
         return response()->json(['items' => $this->listaItems($order), 'monto' => $order->monto]);
     }
 
-    /** Agrega por codigo / nombre (campo Producto) o por id (cuando se eligio de la lista). */
+    /**
+     * Agrega por codigo / nombre (campo Producto) o por id (cuando se eligio de la lista).
+     * Panaderia: "importe" en vez de cantidad (calcula el peso) y etiquetas de balanza.
+     */
     public function agregar(Request $request, Order $order)
     {
         $datos = $request->validate([
             'codigo' => ['nullable', 'string', 'max:100', 'required_without_all:product_id,combo_id'],
             'product_id' => ['nullable', 'integer'],
             'combo_id' => ['nullable', 'integer'],
-            'cantidad' => ['required'],
+            'cantidad' => ['required_without:importe'],
+            'importe' => ['nullable'],
         ]);
-        $cantidad = Dinero::parse($datos['cantidad']);
-        if ($cantidad === null || $cantidad <= 0) {
-            return response()->json(['message' => 'La cantidad tiene que ser un número mayor a cero.'], 422);
+        $porImporte = isset($datos['importe']) && $datos['importe'] !== '';
+        if ($porImporte) {
+            if (! Panaderia::opcion('importe')) {
+                return response()->json(['message' => 'La venta por importe está deshabilitada (Configuración → Panadería).'], 422);
+            }
+            // en plata "1.500" es mil quinientos (el punto separa los miles)
+            $raw = trim((string) $datos['importe']);
+            $importe = Dinero::parse(preg_match('/^\$?\s*\d{1,3}(\.\d{3})+$/', $raw) ? str_replace(['.', '$', ' '], '', $raw) : ltrim($raw, '$ '));
+            if ($importe === null || $importe <= 0) {
+                return response()->json(['message' => 'El importe tiene que ser mayor a cero.'], 422);
+            }
+            if (! empty($datos['combo_id'])) {
+                return response()->json(['message' => 'Los combos no se venden por importe.'], 422);
+            }
+            $cantidad = 0.0;
+        } else {
+            $cantidad = Dinero::parse($datos['cantidad']);
+            if ($cantidad === null || $cantidad <= 0) {
+                return response()->json(['message' => 'La cantidad tiene que ser un número mayor a cero.'], 422);
+            }
         }
 
         if (! empty($datos['combo_id'])) {
             return $this->agregarCombo($order, Combo::findOrFail($datos['combo_id']), $cantidad);
         }
 
+        $etiqueta = null;
         if (! empty($datos['product_id'])) {
             $product = Product::where('activo', 1)->findOrFail($datos['product_id']);
+        } elseif (Panaderia::opcion('balanza') && ! Product::where('codigo', trim($datos['codigo']))->exists()
+            && ($etiqueta = Panaderia::leer($datos['codigo']))) {
+            // etiqueta de la balanza: el producto sale del codigo (PLU) y la cantidad del peso o del precio
+            $product = Product::with('category')->where('activo', 1)->where('tiene_variantes', 0)
+                ->whereIn('codigo', Panaderia::codigosPlu($etiqueta['plu']))->first();
+            if (! $product) {
+                return response()->json(['message' => 'La etiqueta es del producto con código '.ltrim($etiqueta['plu'], '0').', pero no hay ningún producto activo con ese código. Cargalo con el mismo código que tiene en la balanza.'], 422);
+            }
+            $cantidad = $etiqueta['tipo'] === 'precio' ? Panaderia::cantidadPorImporte($etiqueta['valor'], (float) $product->monto) : $etiqueta['valor'];
         } else {
             $encontrados = $this->ventas->buscar($datos['codigo']);
-            $combos = $this->ventas->buscarCombos($datos['codigo']);
+            $combos = $porImporte ? collect() : $this->ventas->buscarCombos($datos['codigo']);
             if ($encontrados->isEmpty() && $combos->count() === 1) {
                 return $this->agregarCombo($order, $combos->first(), $cantidad);
             }
@@ -216,13 +249,30 @@ class VentaController extends Controller
             $product = $encontrados->first();
         }
 
+        if ($porImporte && ! $etiqueta) {
+            $product->loadMissing('category');
+            if (! $product->category?->esPorPeso()) {
+                return response()->json(['message' => $product->nombre.' se vende por unidad: la venta por importe es para productos por peso (Kg).'], 422);
+            }
+            $cantidad = Panaderia::cantidadPorImporte($importe, (float) $product->monto);
+            if ($cantidad < 0.001) {
+                return response()->json(['message' => 'Con $'.number_format($importe, 0, ',', '.').' no llega a 1 gramo de '.$product->nombre.'.'], 422);
+            }
+        }
+
         $this->ventas->agregarProducto($order, $product, $cantidad);
         $u = $product->category?->unidad ?? '';
         if ($cantidad == 1 && str_ends_with($u, 's')) {
             $u = substr($u, 0, -1);
         }
+        $msg = '+ '.rtrim(rtrim(number_format($cantidad, 3, ',', ''), '0'), ',').' '.$u.' de '.$product->nombre;
+        if ($porImporte && ! $etiqueta) {
+            $msg .= ' ($'.number_format(ceil(round($cantidad * $product->monto, 4)), 0, ',', '.').')';
+        } elseif ($etiqueta) {
+            $msg .= ' (etiqueta de balanza)';
+        }
 
-        return $this->respuestaItems($order, '+ '.rtrim(rtrim(number_format($cantidad, 3, ',', ''), '0'), ',').' '.$u.' de '.$product->nombre);
+        return $this->respuestaItems($order, $msg);
     }
 
     private function agregarCombo(Order $order, Combo $combo, float $cantidad)

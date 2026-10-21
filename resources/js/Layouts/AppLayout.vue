@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     House, Receipt, Wallet, Undo2, Users, Truck, Package, Tags, ChartColumn, FileText, Settings2,
-    UserCog, ShieldCheck, LogOut, Menu, X, ShoppingCart, Lock, Moon, Sun, Printer, Gift, SlidersHorizontal, FileSpreadsheet, ArrowLeftRight, Store, ChevronsUpDown, WifiOff, CloudUpload, Barcode, ClipboardList,
+    UserCog, ShieldCheck, LogOut, Menu, X, ShoppingCart, Lock, Moon, Sun, Printer, Gift, SlidersHorizontal, FileSpreadsheet, ArrowLeftRight, Store, ChevronsUpDown, WifiOff, CloudUpload, Barcode, ClipboardList, Croissant,
 } from 'lucide-vue-next';
 import Toasts from '@/Components/Toasts.vue';
 import VentaSinConexion from '@/Components/VentaSinConexion.vue';
@@ -40,6 +40,7 @@ const secciones = computed(() => [
     ] },
     { titulo: 'Mercadería', items: [
         puede('productos') && { nombre: 'Productos', url: '/productos', icono: Package },
+        puede('produccion') && modulos.value.panaderia?.produccion && { nombre: 'Producción del día', url: '/produccion', icono: Croissant },
         puede('combos') && modulos.value.combos && { nombre: 'Combos y promos', url: '/combos', icono: Gift },
         puede('listas-precios') && modulos.value.listas_precios && { nombre: 'Listas de precios', url: '/listas-precios', icono: FileSpreadsheet },
         puede('transferencias') && modulos.value.multisucursal && { nombre: 'Transferencias', url: '/transferencias', icono: ArrowLeftRight },
@@ -48,8 +49,8 @@ const secciones = computed(() => [
     ] },
     { titulo: 'Administración', items: [
         puede('informe') && { nombre: 'Reportes', url: '/reportes', icono: ChartColumn },
-        puede('afip') && { nombre: 'Facturación', url: '/afip', icono: FileText, exacto: true },
-        puede('afip') && { nombre: 'Configuración AFIP', url: '/afip/configuracion', icono: Settings2 },
+        puede('afip') && modulos.value.afip && { nombre: 'Facturación', url: '/afip', icono: FileText, exacto: true },
+        puede('afip-config') && modulos.value.afip && { nombre: 'Configuración AFIP', url: '/afip/configuracion', icono: Settings2 },
         puede('roles-permisos') && { nombre: 'Roles y permisos', url: '/roles', icono: ShieldCheck },
         puede('configuracion') && { nombre: 'Configuración', url: '/configuracion', icono: SlidersHorizontal },
     ] },

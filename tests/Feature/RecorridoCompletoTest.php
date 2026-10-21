@@ -37,6 +37,8 @@ class RecorridoCompletoTest extends TestCase
         $this->put('/configuracion/presupuestos', ['habilitadas' => true]);
         $this->put('/configuracion/remitos', ['habilitadas' => true]);
         $this->put('/configuracion/combos', ['habilitadas' => true]);
+        $this->put('/configuracion/afip', ['habilitada' => true]);
+        $this->put('/configuracion/panaderia', ['habilitada' => true, 'importe' => true, 'balanza' => true, 'produccion' => true, 'prefijos' => '20', 'digitos_codigo' => 5, 'tipo' => 'peso', 'decimales' => 3, 'verificar' => true]);
         $this->post('/configuracion/sucursales', ['nombre' => 'Norte']);
         Configuracion::limpiarCache();
         $norte = Sucursal::where('nombre', 'Norte')->first();
@@ -96,6 +98,8 @@ class RecorridoCompletoTest extends TestCase
         $this->post('/transferencias', ['destino' => $norte->id, 'items' => [['id_producto' => $coca->id, 'cantidad' => 5]]])->assertSessionHasNoErrors();
         $this->postJson('/etiquetas/preparar', ['items' => [['id' => $coca->id, 'copias' => 2]], 'config' => \App\Http\Controllers\EtiquetaController::DEFECTO])->assertOk();
 
+        // produccion del dia (abierta) en Casa Central
+        $this->post('/produccion/hornear', ['id_producto' => $jamon->id, 'cantidad' => 2.5])->assertSessionHas('ok');
         // presupuesto y remitos (de venta y suelto)
         $this->post('/presupuestos', ['validez_dias' => 10, 'descuento' => 100, 'cliente_nombre' => 'Obra Pérez', 'items' => [
             ['id_producto' => $coca->id, 'descripcion' => 'Coca', 'cantidad' => 2, 'precio' => 1500], ['descripcion' => 'Flete', 'cantidad' => 1, 'precio' => 3000]]])->assertSessionHasNoErrors();
@@ -122,7 +126,7 @@ class RecorridoCompletoTest extends TestCase
         $consulta = [
             'reportes/datos' => '?periodo=semana', 'productos/exportar' => '?formato=xlsx', 'ventas/exportar' => '?formato=csv&desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),
             'etiquetas/barra' => '?codigo=7790001', 'etiquetas/buscar' => '?q=co', 'buscar/productos' => '?q=co', 'buscar/clientes' => '?q=lu',
-            'buscar/vales/codigo' => '?codigo=0000', 'presupuestos/productos' => '?q=co', 'remitos/productos' => '?q=co', 'presupuestos/clientes' => '?q=lu',
+            'buscar/vales/codigo' => '?codigo=0000', 'presupuestos/productos' => '?q=co', 'produccion/productos' => '?q=co', 'produccion' => '?fecha='.now()->toDateString(), 'remitos/productos' => '?q=co', 'presupuestos/clientes' => '?q=lu',
             'remitos/clientes' => '?q=lu', 'remitos/nuevo' => '?venta=2', 'remitos/{remito}/imprimir' => '?precios=1', 'presupuestos/nuevo' => '?copiar=1', 'transferencias/productos' => '?q=co', 'listas-precios/productos' => '?q=co',
             'ventas' => '?desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),
             'caja/movimientos' => '?desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),

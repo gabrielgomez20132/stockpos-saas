@@ -14,7 +14,8 @@ class Permission extends Model
         'anular-ventas' => ['Anular ventas sin cobrar', 'Ventas y caja', 'Cancelar una venta que todavía no se cobró (devuelve el stock).'],
         'control' => ['Caja: gastos y movimientos', 'Ventas y caja', 'Gastos, servicios, pagos desde la caja, movimientos y exportar ventas.'],
         'devoluciones' => ['Devoluciones y vales', 'Ventas y caja', 'Registrar devoluciones y emitir vales para el cliente.'],
-        'afip' => ['Facturación AFIP', 'Ventas y caja', 'Libro de comprobantes y configuración de AFIP.'],
+        'afip' => ['Facturación AFIP', 'Ventas y caja', 'Libro de comprobantes (Facturación) y marcar facturas pagadas.'],
+        'afip-config' => ['Configuración AFIP', 'Administración', 'Datos fiscales, punto de venta, ambiente y certificados de AFIP.'],
         'informe' => ['Reportes', 'Ventas y caja', 'Ventas, costos y ganancias por período.'],
         'presupuestos' => ['Presupuestos', 'Ventas y caja', 'Armar, imprimir y editar presupuestos para clientes.'],
         'remitos' => ['Remitos', 'Ventas y caja', 'Remitos de entrega: de una venta o sueltos (los sueltos descuentan stock).'],
@@ -27,6 +28,7 @@ class Permission extends Model
         'categorias' => ['Categorías', 'Mercadería', 'Categorías de productos (por unidad o por peso).'],
         'combos' => ['Combos y promociones', 'Mercadería', 'Crear y editar combos y promos.'],
         'listas-precios' => ['Listas de precios de proveedores', 'Mercadería', 'Subir listas de proveedores y aplicar los costos nuevos.'],
+        'produccion' => ['Producción del día (panadería)', 'Mercadería', 'Cargar lo que sale del horno (entra al stock) y cerrar el día con lo que sobró.'],
         'transferencias' => ['Transferencias entre sucursales', 'Mercadería', 'Mandar mercadería de una sucursal a otra.'],
         // administracion
         'configuracion' => ['Configuración', 'Administración', 'Variantes, módulos (listas de precios, multisucursal) y ajustes generales.'],
@@ -37,15 +39,15 @@ class Permission extends Model
     public const HEREDA = [
         'descuentos' => '*', 'anular-ventas' => '*',
         'devoluciones' => 'control', 'proveedores' => 'control',
-        'presupuestos' => '*', 'remitos' => 'productos',
+        'afip-config' => 'afip', 'presupuestos' => '*', 'remitos' => 'productos', 'produccion' => 'productos',
         'combos' => 'productos', 'listas-precios' => 'productos', 'transferencias' => 'productos', 'configuracion' => 'productos',
     ];
 
     /** slug => nombre visible */
     public const LISTA = [
         'descuentos' => 'Hacer descuentos', 'anular-ventas' => 'Anular ventas sin cobrar', 'control' => 'Caja: gastos y movimientos',
-        'devoluciones' => 'Devoluciones y vales', 'afip' => 'Facturación AFIP', 'informe' => 'Reportes',
-        'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos',
+        'devoluciones' => 'Devoluciones y vales', 'afip' => 'Facturación AFIP', 'afip-config' => 'Configuración AFIP', 'informe' => 'Reportes',
+        'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos', 'produccion' => 'Producción del día (panadería)',
         'clientes' => 'Clientes y cuentas corrientes', 'proveedores' => 'Proveedores', 'encargados' => 'Encargados y sucursales',
         'productos' => 'Productos y stock', 'categorias' => 'Categorías', 'combos' => 'Combos y promociones',
         'listas-precios' => 'Listas de precios de proveedores', 'transferencias' => 'Transferencias entre sucursales',

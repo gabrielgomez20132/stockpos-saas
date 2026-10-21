@@ -32,7 +32,7 @@ class ImportarControlSoft extends Command
         // tablas nuevas que dependen de productos y ventas: se vacian (en la base vieja no existen)
         'combos', 'combo_items', 'stock_sucursal', 'transferencias', 'transferencia_items',
         'listas_precios', 'lista_precio_items', 'producto_proveedor',
-        'presupuestos', 'presupuesto_items', 'remitos', 'remito_items',
+        'presupuestos', 'presupuesto_items', 'remitos', 'remito_items', 'producciones', 'produccion_items', 'produccion_tandas',
     ];
 
     public function handle(): int
