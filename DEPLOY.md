@@ -110,7 +110,7 @@ Conviene copiar `backups/` a otro lado (otro servidor, Google Drive con rclone, 
 ```bash
 cd /opt/docker/stokpos && ./deploy.sh
 ```
-Trae el código, recompila, hace backup si hay migraciones nuevas, migra y vuelve a armar los caches. Mientras migra, el sitio muestra "en mantenimiento" unos segundos.
+Trae el código, recompila y vuelve a armar los caches. Las **migraciones** corren solo si hay nuevas (antes hace un backup de la base). Los **seeders** (formas de pago, roles, permisos y el usuario `1234` / `admin`) corren **solo la primera vez**, cuando la base está vacía; para volver a correrlos: `./deploy.sh --seed` (no borran ni pisan nada). Mientras migra, el sitio muestra "en mantenimiento" unos segundos.
 
 ## Comandos útiles
 ```bash

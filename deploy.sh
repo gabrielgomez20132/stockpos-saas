@@ -6,6 +6,7 @@
 #   ./deploy.sh                 # git pull + build + migraciones + caches
 #   ./deploy.sh --no-pull       # despliega lo que ya hay en la carpeta
 #   ./deploy.sh --branch dev    # otra rama (por defecto: main)
+#   ./deploy.sh --seed          # vuelve a correr los seeders de datos base (idempotentes)
 #
 # Que hace, en orden:
 #   1. trae el codigo (git pull --ff-only, aborta si hay cambios locales)
@@ -13,12 +14,13 @@
 #   3. levanta los contenedores (SIN down -v: public/uploads y AFIP a salvo)
 #   4. composer install --no-dev
 #   5. compila el frontend con un contenedor de Node (public/build)
-#   6. modo mantenimiento -> backup de la base -> migraciones -> datos base
+#   6. modo mantenimiento -> migraciones SOLO si hay nuevas (con backup antes)
+#      -> seeders SOLO la primera vez (base vacia) o con --seed
 #   7. caches de config/rutas/vistas y salida del modo mantenimiento
 #   8. prueba que /up responda
 #
-# Los seeders que corre (BaseSeeder y RolesSeeder) son idempotentes: completan
-# formas de pago, roles y permisos que falten SIN borrar ni pisar nada.
+# Los seeders (BaseSeeder y RolesSeeder) ademas son idempotentes: aunque se
+# corran de nuevo con --seed, completan lo que falte SIN borrar ni pisar nada.
 # El catalogo de ejemplo NUNCA se carga en produccion.
 # =============================================================================
 set -euo pipefail
@@ -26,13 +28,15 @@ set -euo pipefail
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOST_PORT="9013"
 DO_PULL=1
+DO_SEED=0
 BRANCH="main"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-pull) DO_PULL=0 ;;
+    --seed) DO_SEED=1 ;;
     --branch) shift; [[ $# -gt 0 ]] || { echo "ERROR: --branch necesita una rama" >&2; exit 1; }; BRANCH="$1" ;;
-    -h|--help) echo "Uso: ./deploy.sh [--no-pull] [--branch <rama>]"; exit 0 ;;
+    -h|--help) echo "Uso: ./deploy.sh [--no-pull] [--seed] [--branch <rama>]"; exit 0 ;;
     *) echo "ERROR: opcion desconocida: $1" >&2; exit 1 ;;
   esac
   shift
@@ -115,14 +119,35 @@ artisan config:clear >/dev/null
 artisan down --retry=15 --refresh=15 || true
 trap 'artisan up >/dev/null 2>&1 || true' EXIT
 
+# Primera vez = la base todavia no tiene la tabla de migraciones.
 ESTADO="$(artisan migrate:status 2>&1 | tr -d '\r' || true)"
-if echo "$ESTADO" | grep -qE 'Pending|Pendiente'; then
-  echo "     hay migraciones pendientes: backup antes de migrar"
-  ./backup.sh --solo-base || die "Fallo el backup: no migro."
+PRIMERA=0
+if echo "$ESTADO" | grep -qiE 'Migration table not found|No migrations found|doesn.t exist'; then
+  PRIMERA=1
 fi
-artisan migrate --force
-artisan db:seed --class='Database\Seeders\BaseSeeder' --force
-artisan db:seed --class='Database\Seeders\RolesSeeder' --force
+
+if [[ "$PRIMERA" -eq 1 ]]; then
+  echo "     base nueva: se crean todas las tablas"
+  artisan migrate --force
+elif echo "$ESTADO" | grep -qE 'Pending|Pendiente'; then
+  echo "     migraciones pendientes:"
+  echo "$ESTADO" | grep -E 'Pending|Pendiente' | sed 's/^ */       /'
+  ./backup.sh --solo-base || die "Fallo el backup: no migro."
+  artisan migrate --force
+else
+  echo "     sin migraciones nuevas: no se toca la base"
+fi
+
+# Seeders (formas de pago, canal, roles, permisos y el usuario administrador):
+# SOLO la primera vez, o si se pide con --seed. El catalogo de ejemplo nunca.
+if [[ "$PRIMERA" -eq 1 || "$DO_SEED" -eq 1 ]]; then
+  echo "     cargando datos base (seeders)"
+  artisan db:seed --class='Database\Seeders\BaseSeeder' --force
+  artisan db:seed --class='Database\Seeders\RolesSeeder' --force
+  [[ "$PRIMERA" -eq 1 ]] && echo "     USUARIO INICIAL: DNI 1234 / clave admin  ->  cambiala apenas entres (Mi perfil)"
+else
+  echo "     seeders: no (ya se corrieron la primera vez; forzar con --seed)"
+fi
 
 # ----------------------------------------------------------------------------- 7
 log "7/8  Caches"
