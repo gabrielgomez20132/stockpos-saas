@@ -34,7 +34,7 @@ class VarianteController extends Controller
         return Inertia::render('Productos/Variantes', [
             'producto' => $base->only(['id', 'nombre', 'codigo', 'costo', 'monto', 'quedan', 'tiene_variantes', 'imagen_url']) + ['unidad' => $base->category?->unidad],
             'variantes' => $base->variantes()->get(['id', 'codigo', 'nombre', 'variante', 'costo', 'monto', 'quedan', 'aviso', 'activo'])->tap(fn ($l) => Stock::cargar($l)),
-            'sucursal' => SucursalActual::habilitado() ? SucursalActual::nombre() : null,
+            'sucursalNombre' => SucursalActual::habilitado() ? SucursalActual::nombre() : null,
             'atributos' => Atributo::with('valores')->where('activo', 1)->orderBy('orden')->get(),
             'habilitadas' => Configuracion::variantes(),
         ]);

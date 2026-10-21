@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     House, Receipt, Wallet, Undo2, Users, Truck, Package, Tags, ChartColumn, FileText, Settings2,
-    UserCog, ShieldCheck, LogOut, Menu, X, ShoppingCart, Lock, Moon, Sun, Printer, Gift, SlidersHorizontal, FileSpreadsheet, ArrowLeftRight, Store, ChevronsUpDown, WifiOff, CloudUpload, Barcode,
+    UserCog, ShieldCheck, LogOut, Menu, X, ShoppingCart, Lock, Moon, Sun, Printer, Gift, SlidersHorizontal, FileSpreadsheet, ArrowLeftRight, Store, ChevronsUpDown, WifiOff, CloudUpload, Barcode, ClipboardList,
 } from 'lucide-vue-next';
 import Toasts from '@/Components/Toasts.vue';
 import VentaSinConexion from '@/Components/VentaSinConexion.vue';
@@ -30,6 +30,8 @@ const secciones = computed(() => [
         { nombre: 'Ventas', url: '/ventas', icono: Receipt },
         { nombre: 'Caja', url: '/caja', icono: Wallet, activo: '/caja' },
         puede('devoluciones') && { nombre: 'Devoluciones', url: '/devoluciones', icono: Undo2 },
+        puede('presupuestos') && modulos.value.presupuestos && { nombre: 'Presupuestos', url: '/presupuestos', icono: FileText },
+        puede('remitos') && modulos.value.remitos && { nombre: 'Remitos', url: '/remitos', icono: ClipboardList },
     ] },
     { titulo: 'Personas', items: [
         puede('clientes') && { nombre: 'Clientes', url: '/clientes', icono: Users },

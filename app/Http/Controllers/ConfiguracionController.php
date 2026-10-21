@@ -24,6 +24,8 @@ class ConfiguracionController extends Controller
         return Inertia::render('Configuracion/Index', [
             'listasPrecios' => (bool) Configuracion::get('listas_precios_habilitadas', false),
             'multisucursal' => $multi,
+            'presupuestos' => (bool) Configuracion::get('presupuestos_habilitadas', false),
+            'remitos' => (bool) Configuracion::get('remitos_habilitadas', false),
             'puedeSucursales' => $request->user()->hasPermission('encargados'),
             'sucursales' => Sucursal::orderBy('id')->get()->map(fn ($s) => $s->only(['id', 'nombre', 'direccion', 'telefono', 'activa']) + [
                 'encargados' => User::where('id_sucursal', $s->id)->count(),
@@ -53,6 +55,26 @@ class ConfiguracionController extends Controller
         return $this->ok($d['habilitadas']
             ? 'Listas de precios habilitadas: las encontrás en el menú, en Mercadería.'
             : 'Listas de precios deshabilitadas. El historial se conserva.');
+    }
+
+    public function presupuestos(Request $request)
+    {
+        $d = $request->validate(['habilitadas' => ['required', 'boolean']]);
+        Configuracion::set('presupuestos_habilitadas', (bool) $d['habilitadas']);
+
+        return $this->ok($d['habilitadas']
+            ? 'Presupuestos habilitados: los encontrás en el menú, en Ventas.'
+            : 'Presupuestos deshabilitados. Los que ya hiciste se conservan.');
+    }
+
+    public function remitos(Request $request)
+    {
+        $d = $request->validate(['habilitadas' => ['required', 'boolean']]);
+        Configuracion::set('remitos_habilitadas', (bool) $d['habilitadas']);
+
+        return $this->ok($d['habilitadas']
+            ? 'Remitos habilitados: los encontrás en el menú y en el detalle de cada venta.'
+            : 'Remitos deshabilitados. Los que ya hiciste se conservan.');
     }
 
     public function multisucursal(Request $request)

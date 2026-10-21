@@ -26,7 +26,7 @@ class RolesSeeder extends Seeder
                 $todos = Permission::pluck('id', 'slug');
                 $ids = $nombre === 'Empleado'
                     ? $todos->except(['productos', 'categorias', 'control', 'afip', 'roles-permisos', 'encargados',
-                        'devoluciones', 'proveedores', 'combos', 'listas-precios', 'transferencias', 'configuracion'])->values()
+                        'devoluciones', 'proveedores', 'combos', 'listas-precios', 'transferencias', 'configuracion', 'remitos'])->values()
                     : $todos->values();
                 $rol->permissions()->sync($ids);
             }

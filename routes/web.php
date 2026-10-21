@@ -19,6 +19,8 @@ use App\Http\Controllers\OfflineController;
 use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\PerfilController;
+use App\Http\Controllers\PresupuestoController;
+use App\Http\Controllers\RemitoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\ReporteController;
@@ -175,6 +177,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
         Route::post('configuracion/atributos/{atributo}/valores', [ConfiguracionController::class, 'agregarValor'])->name('atributos.valores');
         Route::delete('configuracion/valores/{valor}', [ConfiguracionController::class, 'borrarValor'])->name('atributos.valores.destroy');
         Route::put('configuracion/listas-precios', [ConfiguracionController::class, 'listasPrecios'])->name('configuracion.listas');
+        Route::put('configuracion/presupuestos', [ConfiguracionController::class, 'presupuestos'])->name('configuracion.presupuestos');
+        Route::put('configuracion/remitos', [ConfiguracionController::class, 'remitos'])->name('configuracion.remitos');
         Route::put('configuracion/multisucursal', [ConfiguracionController::class, 'multisucursal'])->name('configuracion.multisucursal');
         Route::post('configuracion/sucursales', [SucursalController::class, 'store'])->name('sucursales.store');
         Route::put('configuracion/sucursales/{sucursal}', [SucursalController::class, 'update'])->name('sucursales.update');
@@ -207,6 +211,30 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::get('{transferencia}', [TransferenciaController::class, 'show'])->name('show');
         });
 
+    });
+
+    // presupuestos (solo se imprimen) y remitos de entrega
+    Route::middleware(['permiso:presupuestos', 'modulo:presupuestos'])->prefix('presupuestos')->name('presupuestos.')->group(function () {
+        Route::get('/', [PresupuestoController::class, 'index'])->name('index');
+        Route::get('nuevo', [PresupuestoController::class, 'create'])->name('create');
+        Route::get('productos', [PresupuestoController::class, 'productos'])->name('productos');
+        Route::get('clientes', [PresupuestoController::class, 'clientes'])->name('clientes');
+        Route::post('/', [PresupuestoController::class, 'store'])->name('store');
+        Route::get('{presupuesto}', [PresupuestoController::class, 'show'])->whereNumber('presupuesto')->name('show');
+        Route::get('{presupuesto}/editar', [PresupuestoController::class, 'edit'])->whereNumber('presupuesto')->name('edit');
+        Route::put('{presupuesto}', [PresupuestoController::class, 'update'])->whereNumber('presupuesto')->name('update');
+        Route::delete('{presupuesto}', [PresupuestoController::class, 'destroy'])->whereNumber('presupuesto')->name('destroy');
+        Route::get('{presupuesto}/imprimir', [PresupuestoController::class, 'imprimir'])->whereNumber('presupuesto')->name('imprimir');
+    });
+    Route::middleware(['permiso:remitos', 'modulo:remitos'])->prefix('remitos')->name('remitos.')->group(function () {
+        Route::get('/', [RemitoController::class, 'index'])->name('index');
+        Route::get('nuevo', [RemitoController::class, 'create'])->name('create');
+        Route::get('productos', [RemitoController::class, 'productos'])->name('productos');
+        Route::get('clientes', [RemitoController::class, 'clientes'])->name('clientes');
+        Route::post('/', [RemitoController::class, 'store'])->name('store');
+        Route::get('{remito}', [RemitoController::class, 'show'])->whereNumber('remito')->name('show');
+        Route::post('{remito}/anular', [RemitoController::class, 'anular'])->whereNumber('remito')->name('anular');
+        Route::get('{remito}/imprimir', [RemitoController::class, 'imprimir'])->whereNumber('remito')->name('imprimir');
     });
 
     Route::middleware('permiso:combos')->group(function () {

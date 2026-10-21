@@ -105,6 +105,11 @@ class VentaController extends Controller
             ],
         ];
 
+        // remitos de esta venta (modulo habilitado y con permiso)
+        $props['remitos'] = $order->completada && \App\Models\Configuracion::get('remitos_habilitadas', false) && request()->user()->hasPermission('remitos')
+            ? \App\Models\Remito::where('id_order', $order->id)->orderBy('id')->get()->map(fn ($r) => ['id' => $r->id, 'numero' => $r->numero(), 'anulado' => (bool) $r->anulado_at])
+            : null;
+
         if (! $order->completada) {
             $props['clientes'] = User::tipo(User::TIPO_CLIENTE)->where('activo', 1)->orderByRaw('id = ? DESC', [User::ID_CLIENTE_GENERAL])
                 ->orderBy('nombre')->get(['id', 'nombre']);

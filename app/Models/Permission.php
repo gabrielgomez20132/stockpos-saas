@@ -16,6 +16,8 @@ class Permission extends Model
         'devoluciones' => ['Devoluciones y vales', 'Ventas y caja', 'Registrar devoluciones y emitir vales para el cliente.'],
         'afip' => ['Facturación AFIP', 'Ventas y caja', 'Libro de comprobantes y configuración de AFIP.'],
         'informe' => ['Reportes', 'Ventas y caja', 'Ventas, costos y ganancias por período.'],
+        'presupuestos' => ['Presupuestos', 'Ventas y caja', 'Armar, imprimir y editar presupuestos para clientes.'],
+        'remitos' => ['Remitos', 'Ventas y caja', 'Remitos de entrega: de una venta o sueltos (los sueltos descuentan stock).'],
         // personas
         'clientes' => ['Clientes y cuentas corrientes', 'Personas', 'Alta de clientes, fiado y cobro de deudas.'],
         'proveedores' => ['Proveedores', 'Personas', 'Proveedores y su cuenta corriente (compras y pagos).'],
@@ -35,6 +37,7 @@ class Permission extends Model
     public const HEREDA = [
         'descuentos' => '*', 'anular-ventas' => '*',
         'devoluciones' => 'control', 'proveedores' => 'control',
+        'presupuestos' => '*', 'remitos' => 'productos',
         'combos' => 'productos', 'listas-precios' => 'productos', 'transferencias' => 'productos', 'configuracion' => 'productos',
     ];
 
@@ -42,6 +45,7 @@ class Permission extends Model
     public const LISTA = [
         'descuentos' => 'Hacer descuentos', 'anular-ventas' => 'Anular ventas sin cobrar', 'control' => 'Caja: gastos y movimientos',
         'devoluciones' => 'Devoluciones y vales', 'afip' => 'Facturación AFIP', 'informe' => 'Reportes',
+        'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos',
         'clientes' => 'Clientes y cuentas corrientes', 'proveedores' => 'Proveedores', 'encargados' => 'Encargados y sucursales',
         'productos' => 'Productos y stock', 'categorias' => 'Categorías', 'combos' => 'Combos y promociones',
         'listas-precios' => 'Listas de precios de proveedores', 'transferencias' => 'Transferencias entre sucursales',

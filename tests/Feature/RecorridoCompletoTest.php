@@ -34,6 +34,8 @@ class RecorridoCompletoTest extends TestCase
         $this->put('/configuracion/variantes', ['habilitadas' => true]);
         $this->put('/configuracion/listas-precios', ['habilitadas' => true]);
         $this->put('/configuracion/multisucursal', ['habilitado' => true]);
+        $this->put('/configuracion/presupuestos', ['habilitadas' => true]);
+        $this->put('/configuracion/remitos', ['habilitadas' => true]);
         $this->post('/configuracion/sucursales', ['nombre' => 'Norte']);
         Configuracion::limpiarCache();
         $norte = Sucursal::where('nombre', 'Norte')->first();
@@ -93,6 +95,12 @@ class RecorridoCompletoTest extends TestCase
         $this->post('/transferencias', ['destino' => $norte->id, 'items' => [['id_producto' => $coca->id, 'cantidad' => 5]]])->assertSessionHasNoErrors();
         $this->postJson('/etiquetas/preparar', ['items' => [['id' => $coca->id, 'copias' => 2]], 'config' => \App\Http\Controllers\EtiquetaController::DEFECTO])->assertOk();
 
+        // presupuesto y remitos (de venta y suelto)
+        $this->post('/presupuestos', ['validez_dias' => 10, 'descuento' => 100, 'cliente_nombre' => 'Obra Pérez', 'items' => [
+            ['id_producto' => $coca->id, 'descripcion' => 'Coca', 'cantidad' => 2, 'precio' => 1500], ['descripcion' => 'Flete', 'cantidad' => 1, 'precio' => 3000]]])->assertSessionHasNoErrors();
+        $this->post('/remitos', ['id_order' => $o2->id, 'items' => [['id_producto' => $coca->id, 'descripcion' => 'Coca', 'cantidad' => 2, 'precio' => 1500]]])->assertSessionHasNoErrors();
+        $this->post('/remitos', ['id_cliente' => $cliente->id, 'items' => [['id_producto' => $hielo->id, 'descripcion' => 'Hielo', 'cantidad' => 2, 'precio' => 800]]])->assertSessionHasNoErrors();
+
         $this->assertTrue($o1->fresh()->completada);
         $this->assertGreaterThan(0, $o2->fresh()->fiado);
         $this->assertSame('pendiente', $lista->fresh()->estado);
@@ -104,7 +112,7 @@ class RecorridoCompletoTest extends TestCase
             'afip' => $afip->id, 'cierre' => CierreCaja::first()->id, 'tipo' => 'varios', 'categoria' => $coca->id_categoria,
             'cliente' => $cliente->id, 'combo' => $combo->id, 'order' => $o1->id, 'devolucion' => Devolucion::first()->id,
             'encargado' => $enc->id, 'lista' => $lista->id, 'producto' => $remera->id, 'proveedor' => $prov->id,
-            'transferencia' => Transferencia::first()->id, 'norte' => $norte->id, 'pendiente' => $o3->id, 'jamon' => $jamon->id,
+            'transferencia' => Transferencia::first()->id, 'presupuesto' => \App\Models\Presupuesto::first()->id, 'remito' => \App\Models\Remito::first()->id, 'norte' => $norte->id, 'pendiente' => $o3->id, 'jamon' => $jamon->id,
         ];
     }
 
@@ -113,7 +121,8 @@ class RecorridoCompletoTest extends TestCase
         $consulta = [
             'reportes/datos' => '?periodo=semana', 'productos/exportar' => '?formato=xlsx', 'ventas/exportar' => '?formato=csv&desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),
             'etiquetas/barra' => '?codigo=7790001', 'etiquetas/buscar' => '?q=co', 'buscar/productos' => '?q=co', 'buscar/clientes' => '?q=lu',
-            'buscar/vales/codigo' => '?codigo=0000', 'transferencias/productos' => '?q=co', 'listas-precios/productos' => '?q=co',
+            'buscar/vales/codigo' => '?codigo=0000', 'presupuestos/productos' => '?q=co', 'remitos/productos' => '?q=co', 'presupuestos/clientes' => '?q=lu',
+            'remitos/clientes' => '?q=lu', 'remitos/nuevo' => '?venta=2', 'remitos/{remito}/imprimir' => '?precios=1', 'presupuestos/nuevo' => '?copiar=1', 'transferencias/productos' => '?q=co', 'listas-precios/productos' => '?q=co',
             'ventas' => '?desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),
             'caja/movimientos' => '?desde='.now()->subDays(3)->toDateString().'&hasta='.now()->toDateString(),
         ];
@@ -128,6 +137,17 @@ class RecorridoCompletoTest extends TestCase
                 ? $this->getJson($url) : $this->get($url);
             if ($resp->getStatusCode() >= 500) {
                 $errores[] = "[$donde] $url -> ".$resp->getStatusCode().' '.mb_substr(strip_tags((string) $resp->getContent()), 0, 300);
+            }
+            // ninguna pantalla puede pisar los datos compartidos del menu (sucursal, modulos, permisos)
+            $vista = $resp->getStatusCode() === 200 ? $resp->baseResponse->original ?? null : null;
+            if ($vista instanceof \Illuminate\View\View && is_array($pagina = $vista->getData()['page'] ?? null) && ! str_starts_with($pagina['component'] ?? '', 'Print/')) { // las hojas para imprimir no tienen menu
+                $props = $pagina['props'] ?? [];
+                if (SucursalActual::habilitado() && ! isset($props['sucursal']['id'], $props['sucursal']['lista'])) {
+                    $errores[] = "[$donde] $url pisa la prop 'sucursal' del menu";
+                }
+                if (! is_array($props['modulos'] ?? null) || ! is_array($props['auth']['permisos'] ?? null)) {
+                    $errores[] = "[$donde] $url pisa 'modulos' o 'auth'";
+                }
             }
         }
         // las mismas ventas con su detalle

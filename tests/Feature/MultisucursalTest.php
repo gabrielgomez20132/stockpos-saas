@@ -57,6 +57,11 @@ class MultisucursalTest extends TestCase
         $this->assertEquals(6, Stock::de($p->id, 1)); // Casa Central no se toca
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'GAS1', 'cantidad' => 2])->assertStatus(422);
         $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => 2, 'canal_id' => 1, 'medios' => ['efectivo']])->assertSessionHasNoErrors();
+        // cada pedido arranca de cero (como en el servidor): la venta de Norte se abre desde Norte
+        SucursalActual::fijar(null);
+        $this->get("/ventas/{$o->id}")->assertOk();
+        SucursalActual::fijar(null);
+        $this->get("/ventas/{$o->id}/ticket")->assertOk();
         $this->get('/caja/movimientos')->assertInertia(fn ($pg) => $pg->where('datos.caja_inicial', 500)->where('datos.ingXprod_efec', 3000)->etc());
 
         // la venta de Norte no se ve en Casa Central (y su caja esta cerrada)
@@ -92,7 +97,7 @@ class MultisucursalTest extends TestCase
         $norte = $this->habilitar();
         $p = $this->producto(['quedan' => 8]);
         $this->withSession(['sucursal_id' => $norte->id]);
-        $this->get("/productos/{$p->id}/edit")->assertInertia(fn ($pg) => $pg->where('producto.quedan', 0)->has('sucursal.stock', 2)->etc());
+        $this->get("/productos/{$p->id}/edit")->assertInertia(fn ($pg) => $pg->where('producto.quedan', 0)->has('stockSucursal.stock', 2)->where('sucursal.id', $norte->id)->etc());
         $this->put("/productos/{$p->id}", ['nombre' => $p->nombre, 'codigo' => $p->codigo, 'id_categoria' => $p->id_categoria, 'costo' => 600, 'monto' => 1000,
             'aviso' => 1, 'quedan' => 0, 'ingreso' => 5])->assertSessionHasNoErrors();
         $this->assertEquals(5, Stock::de($p->id, $norte->id));

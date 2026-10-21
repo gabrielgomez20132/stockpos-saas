@@ -42,6 +42,8 @@ class HandleInertiaRequests extends Middleware
             'modulos' => fn () => [
                 'listas_precios' => (bool) Configuracion::get('listas_precios_habilitadas', false),
                 'multisucursal' => SucursalActual::habilitado(),
+                'presupuestos' => (bool) Configuracion::get('presupuestos_habilitadas', false),
+                'remitos' => (bool) Configuracion::get('remitos_habilitadas', false),
             ],
             'sucursal' => fn () => $user && SucursalActual::habilitado() ? [
                 'id' => SucursalActual::id(),

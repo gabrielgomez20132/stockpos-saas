@@ -48,6 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             SecurityHeaders::class,
         ]);
+        // la sucursal se resuelve ANTES de buscar los modelos de la ruta ({order}, {remito}...):
+        // si no, en una sucursal que no es Casa Central esos registros darian 404
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\ResolverSucursal::class,
+        );
         $middleware->alias([
             'staff' => EnsureStaff::class,
             'permiso' => EnsurePermission::class,

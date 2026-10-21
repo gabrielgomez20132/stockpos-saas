@@ -9,7 +9,7 @@ import Vacio from '@/Components/Vacio.vue';
 import { plata, cantidad, unidad, numero } from '@/lib/formato';
 import { confirmar } from '@/lib/confirmar';
 
-const props = defineProps({ producto: Object, variantes: Array, atributos: Array, habilitadas: Boolean, sucursal: String });
+const props = defineProps({ producto: Object, variantes: Array, atributos: Array, habilitadas: Boolean, sucursalNombre: String });
 
 // ---- generar combinaciones
 const sel = ref(Object.fromEntries(props.atributos.map((a) => [a.nombre, []])));
@@ -54,7 +54,7 @@ const error = computed(() => Object.values(form.errors)[0]);
 </script>
 
 <template>
-    <Encabezado :titulo="producto.nombre" :subtitulo="`Variantes · ${variantes.length} combinaciones · stock${sucursal ? ' en ' + sucursal : ' total'} ${cantidad(total)} ${unidad(producto.unidad, total)}`">
+    <Encabezado :titulo="producto.nombre" :subtitulo="`Variantes · ${variantes.length} combinaciones · stock${sucursalNombre ? ' en ' + sucursalNombre : ' total'} ${cantidad(total)} ${unidad(producto.unidad, total)}`">
         <Boton :href="`/productos/${producto.id}/edit`" variante="fantasma" :icono="ArrowLeft">Volver al producto</Boton>
     </Encabezado>
 
@@ -106,7 +106,7 @@ const error = computed(() => Object.values(form.errors)[0]);
                         <th>Variante</th><th>Código de barras</th>
                         <th class="w-28">Costo <button v-if="form.variantes.length > 1" class="ml-1 text-[0.65rem] underline" @click="aplicarATodas('costo')">copiar a todas</button></th>
                         <th class="w-28">Precio <button v-if="form.variantes.length > 1" class="ml-1 text-[0.65rem] underline" @click="aplicarATodas('monto')">copiar a todas</button></th>
-                        <th class="w-24">Stock<span v-if="sucursal" class="block text-[0.65rem] font-normal">en {{ sucursal }}</span></th><th class="w-24">Avisar con</th><th class="w-16">Activa</th><th class="w-10"></th>
+                        <th class="w-24">Stock<span v-if="sucursalNombre" class="block text-[0.65rem] font-normal">en {{ sucursalNombre }}</span></th><th class="w-24">Avisar con</th><th class="w-16">Activa</th><th class="w-10"></th>
                     </tr>
                 </thead>
                 <tbody>

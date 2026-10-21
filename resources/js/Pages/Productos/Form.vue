@@ -9,7 +9,7 @@ import Campo from '@/Components/Campo.vue';
 import Selector from '@/Components/Selector.vue';
 import { plata, cantidad, fecha, unidad as uni } from '@/lib/formato';
 
-const props = defineProps({ producto: Object, categorias: Array, ingresos: Array, vendido30: Number, variantes: Object, sucursal: Object });
+const props = defineProps({ producto: Object, categorias: Array, ingresos: Array, vendido30: Number, variantes: Object, stockSucursal: Object });
 const p = props.producto;
 const form = useForm({
     nombre: p?.nombre ?? '', codigo: p?.codigo ?? '', id_categoria: p?.id_categoria ?? props.categorias[0]?.id ?? null,
@@ -55,7 +55,7 @@ function guardar(otro = false) {
                 <Campo v-model="form.aviso" :label="`Avisar con (${unidad})`" tipo="number" step="any" min="0" required ayuda="Stock mínimo para reponer" :error="form.errors.aviso" />
             </div>
             <div v-if="!p" class="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <Campo v-model="form.stock_inicial" :label="`Stock inicial (${unidad})`" :ayuda="sucursal ? `En ${sucursal.nombre}; las demás sucursales arrancan en 0` : ''" tipo="number" step="any" min="0" required :error="form.errors.stock_inicial" />
+                <Campo v-model="form.stock_inicial" :label="`Stock inicial (${unidad})`" :ayuda="stockSucursal ? `En ${stockSucursal.nombre}; las demás sucursales arrancan en 0` : ''" tipo="number" step="any" min="0" required :error="form.errors.stock_inicial" />
             </div>
             <div v-else-if="p.tiene_variantes" class="rounded-xl bg-papel p-4 text-sm dark:bg-petroleo-950">
                 El stock se lleva por variante: hoy suman <b>{{ cantidad(variantes.stock) }} {{ uni(unidad, variantes.stock) }}</b> en {{ variantes.cantidad }} variantes.
@@ -63,7 +63,7 @@ function guardar(otro = false) {
                 <label class="mt-2 flex items-center gap-2"><input v-model="form.activo" type="checkbox" class="size-4 accent-petroleo-700" />Activo</label>
             </div>
             <div v-else class="grid grid-cols-2 gap-4 rounded-xl bg-papel p-4 sm:grid-cols-3 dark:bg-petroleo-950">
-                <p v-if="sucursal" class="col-span-full -mb-1 text-sm font-semibold text-petroleo-600 dark:text-petroleo-300">Stock en {{ sucursal.nombre }}</p>
+                <p v-if="stockSucursal" class="col-span-full -mb-1 text-sm font-semibold text-petroleo-600 dark:text-petroleo-300">Stock en {{ stockSucursal.nombre }}</p>
                 <Campo v-model="form.quedan" :label="`Stock actual (${unidad})`" tipo="number" step="any" min="0" required ayuda="Corregilo si contaste distinto" :error="form.errors.quedan" />
                 <Campo v-model="form.ingreso" :label="`Entra mercadería (${unidad})`" tipo="number" step="any" min="0" placeholder="0" ayuda="Se suma al stock actual" :error="form.errors.ingreso" />
                 <label class="flex items-center gap-2 self-center text-sm"><input v-model="form.activo" type="checkbox" class="size-4 accent-petroleo-700" />Activo (se puede vender)</label>
@@ -71,10 +71,10 @@ function guardar(otro = false) {
         </div>
 
         <aside class="space-y-4">
-            <div v-if="sucursal?.stock?.length > 1" class="panel p-5">
+            <div v-if="stockSucursal?.stock?.length > 1" class="panel p-5">
                 <p class="mb-2 text-sm font-semibold text-petroleo-500">Stock por sucursal</p>
                 <ul class="space-y-1 text-sm">
-                    <li v-for="s in sucursal.stock" :key="s.id" class="flex justify-between"><span>{{ s.nombre }}</span><b :class="{ 'text-sale': s.quedan <= 0 }">{{ cantidad(s.quedan) }} {{ uni(unidad, s.quedan) }}</b></li>
+                    <li v-for="s in stockSucursal.stock" :key="s.id" class="flex justify-between"><span>{{ s.nombre }}</span><b :class="{ 'text-sale': s.quedan <= 0 }">{{ cantidad(s.quedan) }} {{ uni(unidad, s.quedan) }}</b></li>
                 </ul>
                 <Boton href="/transferencias/nueva" tam="sm" class="mt-3 w-full">Transferir entre sucursales</Boton>
             </div>
@@ -111,8 +111,8 @@ function guardar(otro = false) {
     <section v-if="p && ingresos?.length" class="panel mt-5 overflow-hidden">
         <h2 class="border-b border-petroleo-100 px-5 py-3.5 font-semibold dark:border-petroleo-800">Ingresos y cambios de precio</h2>
         <table class="tabla">
-            <thead><tr><th>Fecha</th><th>Quién</th><th v-if="sucursal">Sucursal</th><th class="text-right">Entró</th><th class="text-right">Costo</th><th class="text-right">Venta</th></tr></thead>
-            <tbody><tr v-for="i in ingresos" :key="i.id"><td>{{ fecha(i.created_at, true) }}</td><td>{{ i.user?.nombre }}</td><td v-if="sucursal">{{ i.sucursal }}</td><td class="text-right">{{ i.cantidad ? cantidad(i.cantidad) : '—' }}</td><td class="text-right">{{ plata(i.costo) }}</td><td class="text-right">{{ plata(i.monto) }}</td></tr></tbody>
+            <thead><tr><th>Fecha</th><th>Quién</th><th v-if="stockSucursal">Sucursal</th><th class="text-right">Entró</th><th class="text-right">Costo</th><th class="text-right">Venta</th></tr></thead>
+            <tbody><tr v-for="i in ingresos" :key="i.id"><td>{{ fecha(i.created_at, true) }}</td><td>{{ i.user?.nombre }}</td><td v-if="stockSucursal">{{ i.sucursal }}</td><td class="text-right">{{ i.cantidad ? cantidad(i.cantidad) : '—' }}</td><td class="text-right">{{ plata(i.costo) }}</td><td class="text-right">{{ plata(i.monto) }}</td></tr></tbody>
         </table>
     </section>
 </template>

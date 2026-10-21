@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Plus, Minus, Trash2, ScanBarcode, CirclePlus, ShoppingBasket, UserPlus, Ticket, FileText, FileX, ArrowLeft,
-    Banknote, CreditCard, QrCode, Landmark, ScrollText, BookUser, TicketPercent, X, Lock, Gift,
+    ClipboardList, Banknote, CreditCard, QrCode, Landmark, ScrollText, BookUser, TicketPercent, X, Lock, Gift,
 } from 'lucide-vue-next';
 import Encabezado from '@/Components/Encabezado.vue';
 import Boton from '@/Components/Boton.vue';
@@ -19,7 +19,7 @@ import { plata, cantidad, unidad, numero, fecha, hora } from '@/lib/formato';
 
 const props = defineProps({
     venta: Object, items: Array, afip: Object,
-    clientes: Array, canales: Array, medios: Array, cajaAbierta: Boolean, puedeCrearClientes: Boolean,
+    clientes: Array, canales: Array, medios: Array, cajaAbierta: Boolean, puedeCrearClientes: Boolean, remitos: Array,
 });
 
 const GENERAL = 2;
@@ -487,6 +487,12 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
 
             <div class="panel space-y-2 p-4">
                 <Boton class="w-full" :icono="Ticket" @click="abrirVentana(`/ventas/${venta.id}/ticket`)">Imprimir ticket</Boton>
+                <template v-if="remitos">
+                    <Boton class="w-full" :icono="ClipboardList" :href="`/remitos/nuevo?venta=${venta.id}`">{{ remitos.some((r) => !r.anulado) ? 'Otro remito (entrega parcial)' : 'Hacer remito' }}</Boton>
+                    <p v-if="remitos.length" class="text-center text-xs text-petroleo-500">Remitos:
+                        <template v-for="(r, k) in remitos" :key="r.id"><Link :href="`/remitos/${r.id}`" class="font-semibold underline" :class="{ 'line-through opacity-60': r.anulado }">{{ r.numero }}</Link><template v-if="k < remitos.length - 1">, </template></template>
+                    </p>
+                </template>
                 <template v-if="!venta.factura">
                     <Boton v-if="afip.listo && venta.monto > 0" variante="oscuro" class="w-full" :icono="FileText" @click="factAbierto = true">Facturar</Boton>
                     <p v-else-if="!afip.listo" class="text-center text-xs text-petroleo-500">La facturación electrónica no está configurada.</p>

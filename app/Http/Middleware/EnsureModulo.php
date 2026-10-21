@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 /** El modulo tiene que estar habilitado en Configuracion. */
 class EnsureModulo
 {
-    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal'];
+    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal', 'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos'];
 
     public function handle(Request $request, Closure $next, string $modulo): Response
     {

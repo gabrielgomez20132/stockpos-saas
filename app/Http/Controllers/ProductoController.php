@@ -127,7 +127,7 @@ class ProductoController extends Controller
         $nombres = $multi ? \App\Models\Sucursal::pluck('nombre', 'id') : [];
 
         return Inertia::render('Productos/Form', [
-            'sucursal' => $multi ? ['nombre' => SucursalActual::nombre(), 'stock' => $producto->tiene_variantes ? [] : Stock::porSucursal($producto->id)] : null,
+            'stockSucursal' => $multi ? ['nombre' => SucursalActual::nombre(), 'stock' => $producto->tiene_variantes ? [] : Stock::porSucursal($producto->id)] : null,
             'producto' => $producto->only(['id', 'nombre', 'codigo', 'id_categoria', 'costo', 'monto', 'aviso', 'quedan', 'activo', 'imagen_url', 'tiene_variantes', 'id_padre'])
                 + ['texto_variante' => $producto->textoVariante(), 'padre' => $producto->padre?->only(['id', 'nombre'])],
             'variantes' => [
