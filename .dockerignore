@@ -1,0 +1,4 @@
+# La imagen solo lleva PHP: el codigo se monta desde el host.
+# Igual se excluye todo, asi un "COPY ." futuro jamas mete fotos ni secretos.
+*
+!docker/entrypoint.sh

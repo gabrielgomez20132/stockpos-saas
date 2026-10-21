@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore
+
+# scripts y configs de Docker/Linux: siempre con fin de linea LF (con CRLF de Windows no corren)
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker/* text eol=lf
+deploy/** text eol=lf
+.env.production.example text eol=lf

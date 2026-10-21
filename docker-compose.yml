@@ -1,0 +1,65 @@
+# StokPOS (Laravel 13) en el VPS: /opt/docker/stokpos
+#
+# Mismo esquema que control-soft (kiosco):
+#   - el codigo y public/uploads viven en el HOST (bind mount "./"): un rebuild no los toca
+#   - MySQL es el compartido del VPS (red externa mysql_default, host "mysql")
+#   - el nginx-proxy central entra por http://172.17.0.1:9011 (ver deploy/nginx-proxy/stokpos.conf)
+#
+# Deploy / actualizacion:   ./deploy.sh
+# NO usar nunca:            docker compose down -v   /   docker volume prune
+
+name: stokpos
+
+services:
+
+  stokpos_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stokpos-app
+    container_name: stokpos_app
+    restart: always
+    working_dir: /var/www/stokpos
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/var/www/stokpos
+    expose:
+      - "9000"
+    networks:
+      - stokpos_net
+      - mysql_net
+
+  stokpos_nginx:
+    image: nginx:1.27-alpine
+    container_name: stokpos_nginx
+    restart: always
+    volumes:
+      - ./:/var/www/stokpos:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      # Solo en la IP interna de Docker: desde internet se entra unicamente por
+      # el nginx-proxy (con HTTPS). Publicarlo en 0.0.0.0 dejaria el sitio
+      # abierto por http://IP:9011 salteando el proxy.
+      - "172.17.0.1:9011:80"
+    depends_on:
+      - stokpos_app
+    networks:
+      - stokpos_net
+
+  # Compila el frontend (Vue/Vite) a public/build. Lo usa deploy.sh:
+  #   docker compose run --rm stokpos_node
+  stokpos_node:
+    image: node:22-alpine
+    profiles: ["build"]
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm ci --no-audit --no-fund && npm run build"
+
+networks:
+  stokpos_net:
+    driver: bridge
+  mysql_net:
+    external: true
+    name: mysql_default

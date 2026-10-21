@@ -1,0 +1,16 @@
+# Protección por si el virtual host apunta a la raíz del proyecto en vez de a /public.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # nunca servir archivos ocultos (.env, .git, etc.) ni carpetas internas
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(app|bootstrap|config|database|lang|resources|routes|storage|tests|vendor|node_modules)(/|$) - [F,L]
+    RewriteRule ^(composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml|vite\.config\.js|README\.md)$ - [F,L]
+    # todo lo demás va a public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

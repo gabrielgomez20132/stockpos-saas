@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0E3B43"/>
+  <!-- toldo del kiosco: franjas amarillas y blancas con borde festoneado -->
+  <clipPath id="t"><path d="M88 120h336v90H88z"/></clipPath>
+  <g clip-path="url(#t)">
+    <rect x="88" y="120" width="336" height="90" fill="#F2B705"/>
+    <rect x="144" y="120" width="56" height="90" fill="#FFF8E1"/>
+    <rect x="256" y="120" width="56" height="90" fill="#FFF8E1"/>
+    <rect x="368" y="120" width="56" height="90" fill="#FFF8E1"/>
+  </g>
+  <path d="M88 208 v12 a28 28 0 0 0 56 0 a28 28 0 0 0 56 0 a28 28 0 0 0 56 0 a28 28 0 0 0 56 0 a28 28 0 0 0 56 0 a28 28 0 0 0 56 0 v-12z" fill="#F2B705"/>
+  <path d="M144 208 v12 a28 28 0 0 0 56 0 v-12z M256 208 v12 a28 28 0 0 0 56 0 v-12z M368 208 v12 a28 28 0 0 0 56 0 v-12z" fill="#FFF8E1"/>
+  <!-- mostrador -->
+  <rect x="112" y="300" width="288" height="104" rx="18" fill="#FFF8E1"/>
+  <rect x="112" y="300" width="288" height="26" rx="13" fill="#F2B705"/>
+  <rect x="164" y="350" width="70" height="20" rx="10" fill="#0E3B43" opacity=".85"/>
+  <rect x="252" y="350" width="96" height="20" rx="10" fill="#0E3B43" opacity=".35"/>
+</svg>

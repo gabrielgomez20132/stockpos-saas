@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@source '../js/**/*.vue';
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+
+    --color-petroleo-50: #eef6f6;
+    --color-petroleo-100: #d5e8e9;
+    --color-petroleo-200: #a9cfd2;
+    --color-petroleo-300: #73afb4;
+    --color-petroleo-400: #3f8c93;
+    --color-petroleo-500: #236f77;
+    --color-petroleo-600: #175960;
+    --color-petroleo-700: #12484f;
+    --color-petroleo-800: #0e3b43;
+    --color-petroleo-900: #0a2c32;
+    --color-petroleo-950: #061c20;
+
+    --color-cartel-300: #fbd862;
+    --color-cartel-400: #f7c62c;
+    --color-cartel-500: #f2b705;
+    --color-cartel-600: #d29d00;
+    --color-cartel-700: #a87c00;
+
+    --color-papel: #f4f6f5;
+    --color-tinta: #15232a;
+    --color-entra: #1f7a4a;
+    --color-sale: #b83a26;
+}
+
+@layer base {
+    html { -webkit-tap-highlight-color: transparent; }
+    body { @apply bg-papel text-tinta dark:bg-petroleo-950 dark:text-petroleo-50; font-feature-settings: 'tnum' 1; }
+    :focus-visible { @apply outline-2 outline-offset-2 outline-cartel-500; }
+    input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type='number'] { -moz-appearance: textfield; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+}
+
+@layer components {
+    /* numeros de cartel: condensados y pesados, como la pizarra de precios */
+    .cifra { font-variation-settings: 'wdth' 72; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+    .cifra-suave { font-variation-settings: 'wdth' 82; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+    .panel { @apply rounded-2xl border border-petroleo-100 bg-white dark:border-petroleo-800 dark:bg-petroleo-900; }
+    .campo { @apply block w-full rounded-xl border border-petroleo-200 bg-white px-3 py-2.5 text-base text-tinta placeholder:text-petroleo-300
+        focus:border-petroleo-500 focus:ring-2 focus:ring-petroleo-200 focus:outline-none disabled:bg-papel disabled:text-petroleo-400
+        dark:border-petroleo-700 dark:bg-petroleo-950 dark:text-petroleo-50 dark:focus:ring-petroleo-700 sm:text-sm; }
+    .etiqueta { @apply mb-1 block text-sm font-medium text-petroleo-700 dark:text-petroleo-200; }
+    .tabla { @apply w-full text-sm; }
+    .tabla th { @apply border-b border-petroleo-100 px-3 py-2.5 text-left text-xs font-semibold text-petroleo-500 dark:border-petroleo-800 dark:text-petroleo-300; }
+    .tabla td { @apply border-b border-petroleo-50 px-3 py-2.5 align-middle dark:border-petroleo-800/60; }
+    .tabla tbody tr:hover td { @apply bg-petroleo-50/60 dark:bg-petroleo-800/40; }
+}
+
+/* barra de scroll del menu lateral: del mismo color del menu, fina y sin fondo blanco */
+.scroll-menu {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+}
+.scroll-menu::-webkit-scrollbar { width: 6px; }
+.scroll-menu::-webkit-scrollbar-track { background: transparent; }
+.scroll-menu::-webkit-scrollbar-button { display: none; height: 0; }
+.scroll-menu::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); border-radius: 9999px; }
+.scroll-menu:hover::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.32); }
