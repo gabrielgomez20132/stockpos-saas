@@ -59,7 +59,7 @@ class VariantesTest extends TestCase
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'REM1', 'cantidad' => 1])->assertOk()->assertJsonCount(6, 'elegir');
         $this->postJson("/ventas/{$o->id}/items", ['product_id' => $base->id, 'cantidad' => 1])->assertStatus(422);
         $this->postJson("/ventas/{$o->id}/items", ['product_id' => $m->id, 'cantidad' => 2])->assertOk()->assertJsonPath('monto', 26000);
-        $this->assertEquals(3, $m->fresh()->quedan);
+        $this->assertEquals(5, $m->fresh()->quedan); // se descuenta al cobrar
         $this->getJson('/buscar/productos?q=Remera')->assertJsonCount(6);
 
         // cambiar el nombre del base renombra las variantes

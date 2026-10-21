@@ -19,7 +19,7 @@ class Order extends Model
         'pago_transf', 'pago_cheque', 'pago_dolares', 'pago_vale',
     ];
 
-    protected $fillable = ['id_sucursal', 'offline_uuid', 
+    protected $fillable = ['id_sucursal', 'offline_uuid', 'stock_descontado', 
         'id_encargado', 'id_cliente', 'id_type', 'canal_id', 'id_forma_pago',
         'pago_efec', 'pago_tarj_debito', 'pago_tarj_cred', 'pago_qr', 'pago_cheque',
         'pago_transf', 'pago_dolares', 'pago_vale', 'fiado', 'monto', 'descuento',
@@ -30,7 +30,7 @@ class Order extends Model
     {
         $c = [
             'monto' => 'float', 'descuento' => 'float', 'fiado' => 'float',
-            'completada' => 'boolean', 'deHoy' => 'boolean',
+            'completada' => 'boolean', 'deHoy' => 'boolean', 'stock_descontado' => 'boolean',
             'id_cliente' => 'integer', 'id_encargado' => 'integer', 'id_forma_pago' => 'integer',
             'canal_id' => 'integer', 'id_deuda' => 'integer', 'idAfipFct' => 'integer', 'idAfipNdc' => 'integer',
         ];

@@ -72,6 +72,7 @@ class VentasSinConexion
                     'id_forma_pago' => FormasPago::EFECTIVO,
                     'monto' => 0, 'descuento' => 0, 'fiado' => 0,
                     'completada' => 0, 'deHoy' => 1,
+                    'stock_descontado' => 1, // lo vendido sin conexion ya paso: se descuenta abajo, renglon por renglon (sin rechazar)
                 ]);
                 $productos = Product::with('category')->whereIn('id', array_column($v['items'], 'id'))->lockForUpdate()->get()->keyBy('id');
                 foreach ($v['items'] as $it) {

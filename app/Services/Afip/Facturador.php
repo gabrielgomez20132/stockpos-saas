@@ -111,7 +111,7 @@ class Facturador
 
         // anula la venta: stock de vuelta, sin deuda, importes en cero
         DB::transaction(function () use ($order, $ndc) {
-            foreach ($order->productos as $p) {
+            foreach ($order->stock_descontado ? $order->productos : [] as $p) {
                 \App\Support\Stock::sumar($p->id_producto, $p->cantidad, (int) $order->id_sucursal);
             }
             if ($order->id_deuda) {

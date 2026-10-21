@@ -97,7 +97,7 @@ class PanaderiaTest extends TestCase
         // $1.500 de pan a $2.400 el kg = 0,625 kg
         $this->postJson("/ventas/{$o->id}/items", ['product_id' => $pan->id, 'importe' => 1500])->assertOk()->assertJsonPath('monto', 1500);
         $this->assertEquals(0.625, $o->productos()->first()->cantidad);
-        $this->assertEquals(19.375, Stock::de($pan->id));
+        $this->assertEquals(20, Stock::de($pan->id)); // se descuenta al cobrar
         // tambien escribiendo el codigo
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => '105', 'importe' => '1.000'])->assertOk();
         $this->assertEquals(1.042, $o->productos()->first()->fresh()->cantidad); // se suma al mismo renglon (0,625 + 0,417)
@@ -128,7 +128,7 @@ class PanaderiaTest extends TestCase
         // un producto con ese codigo exacto de 13 digitos se vende como siempre
         $exacto = $this->producto(['codigo' => $this->ean('200099900501'), 'nombre' => 'Exacto', 'quedan' => 5]);
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => $exacto->codigo, 'cantidad' => 2])->assertOk();
-        $this->assertEquals(3, Stock::de($exacto->id));
+        $this->assertSame(2.0, (float) $o->productos()->where('id_producto', $exacto->id)->value('cantidad'));
 
         // precio: la etiqueta trae $1.800,00 (2 decimales) => 0,75 kg
         $this->put('/configuracion/panaderia', ['tipo' => 'precio', 'decimales' => 2, 'digitos_codigo' => 4] + self::CFG)->assertSessionHas('ok');

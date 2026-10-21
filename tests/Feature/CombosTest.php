@@ -71,10 +71,10 @@ class CombosTest extends TestCase
         $o = Order::latest('id')->first();
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'PROMO1', 'cantidad' => 1])->assertOk()
             ->assertJsonPath('monto', 17000)->assertJsonPath('items.0.tipo', 'combo');
-        $this->assertEquals(9, $fernet->fresh()->quedan);
-        $this->assertEquals(0, $hielo->fresh()->quedan);
+        $this->assertEquals(10, $fernet->fresh()->quedan); // se descuenta al cobrar
+        $this->assertEquals(1, $hielo->fresh()->quedan);
 
-        // no alcanza el hielo para un segundo combo
+        // no alcanza el hielo para un segundo combo (el que ya esta en la venta cuenta)
         $this->postJson("/ventas/{$o->id}/items", ['combo_id' => $combo->id, 'cantidad' => 1])->assertStatus(422);
         $this->assertEquals(17000, $o->fresh()->monto);
 
@@ -82,6 +82,8 @@ class CombosTest extends TestCase
         $this->postJson("/ventas/{$o->id}/items", ['product_id' => $fernet->id, 'cantidad' => 1])->assertOk()->assertJsonPath('monto', 32000);
 
         $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => 2, 'canal_id' => 1, 'medios' => ['efectivo']])->assertSessionHasNoErrors();
+        $this->assertEquals(8, $fernet->fresh()->quedan); // 1 del combo + 1 suelto
+        $this->assertEquals(0, $hielo->fresh()->quedan);
         $this->get('/caja/movimientos')->assertInertia(fn ($p) => $p->where('datos.total_efec', 32000)
             ->where('datos.ganXmercaderias', (17000 - 13500) + (15000 - 11000))->etc());
         $this->get('/combos')->assertInertia(fn ($p) => $p->where('combos.0.veces', 1)->etc());
@@ -97,7 +99,8 @@ class CombosTest extends TestCase
         $o = Order::latest('id')->first();
         $id = $this->postJson("/ventas/{$o->id}/items", ['combo_id' => $combo->id, 'cantidad' => 2])->assertOk()->assertJsonPath('monto', 34000)->json('items.0.id');
         $this->putJson("/ventas/items/{$id}", ['cantidad' => 3])->assertOk()->assertJsonPath('monto', 51000);
-        $this->assertEquals(7, $fernet->fresh()->quedan);
+        $this->assertEquals(10, $fernet->fresh()->quedan);
+        $this->putJson('/ventas/items/'.OrderProduct::where('id_order', $o->id)->value('id'), ['cantidad' => 11])->assertStatus(422); // hay 10 fernet
         $id = OrderProduct::where('id_order', $o->id)->value('id');
         $this->deleteJson("/ventas/items/{$id}")->assertOk()->assertJsonPath('monto', 0);
         $this->assertEquals(10, $fernet->fresh()->quedan);

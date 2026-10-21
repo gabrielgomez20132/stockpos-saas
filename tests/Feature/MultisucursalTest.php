@@ -53,10 +53,11 @@ class MultisucursalTest extends TestCase
         $o = Order::latest('id')->first();
         $this->assertEquals($norte->id, $o->id_sucursal);
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'GAS1', 'cantidad' => 3])->assertOk();
+        $this->assertEquals(4, Stock::de($p->id, $norte->id)); // se descuenta al cobrar
+        $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'GAS1', 'cantidad' => 2])->assertStatus(422); // en Norte hay 4 y ya hay 3 en la venta
+        $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => 2, 'canal_id' => 1, 'medios' => ['efectivo']])->assertSessionHasNoErrors();
         $this->assertEquals(1, Stock::de($p->id, $norte->id));
         $this->assertEquals(6, Stock::de($p->id, 1)); // Casa Central no se toca
-        $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'GAS1', 'cantidad' => 2])->assertStatus(422);
-        $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => 2, 'canal_id' => 1, 'medios' => ['efectivo']])->assertSessionHasNoErrors();
         // cada pedido arranca de cero (como en el servidor): la venta de Norte se abre desde Norte
         SucursalActual::fijar(null);
         $this->get("/ventas/{$o->id}")->assertOk();

@@ -106,11 +106,8 @@ class Ventas
             if ($product->tiene_variantes) {
                 throw new \DomainException('Elegí la variante de '.$product->nombre.' (talle, color...).');
             }
-            $sid = (int) $order->id_sucursal;
-            $hay = Stock::de($product->id, $sid, true);
-            if ($hay + 1e-9 < $cantidad) {
-                throw new \DomainException('Solo quedan '.$this->cant($hay).' '.$this->unidad($product, $hay).' de '.$product->nombre.' en stock.');
-            }
+            // el stock se descuenta al COBRAR; aca solo se controla que alcance (contando lo que ya esta en esta venta)
+            $this->exigirStock($product, (int) $order->id_sucursal, $this->enVenta($order, $product->id) + $cantidad);
 
             // si el producto ya esta en la venta, se suma al mismo renglon
             $item = OrderProduct::where('id_order', $order->id)->where('id_producto', $product->id)
@@ -128,7 +125,6 @@ class Ventas
                 ]);
             }
 
-            Stock::sumar($product->id, -$cantidad, $sid);
             $this->recalcular($order);
 
             return $item;
@@ -187,7 +183,7 @@ class Ventas
                 }
                 $cant = round($it->cantidad * $veces, 3);
                 $hay = Stock::de($p->id, (int) $order->id_sucursal, true);
-                if ($hay + 1e-9 < $cant) {
+                if ($hay + 1e-9 < $this->enVenta($order, $p->id) + $cant) {
                     throw new \DomainException('No alcanza el stock para el combo: de '.$p->nombre.' quedan '.$this->cant($hay).'.');
                 }
                 $lineas[] = ['p' => $p, 'cant' => $cant, 'lista' => $p->monto * $cant];
@@ -216,7 +212,6 @@ class Ventas
                 'id_order' => $order->id, 'id_producto' => $l['p']->id, 'cantidad' => $l['cant'],
                 'costo_x_uni' => $l['p']->costo, 'monto' => $unit, 'id_combo' => $combo->id, 'combo_grupo' => $grupo,
             ]);
-            Stock::sumar($l['p']->id, -$l['cant'], (int) $order->id_sucursal);
         }
     }
 
@@ -233,7 +228,6 @@ class Ventas
         $precioUnitCombo = $vecesActual > 0 ? round($grupo->sum(fn ($r) => $r->subtotal()) / $vecesActual, 2) : $combo->precio;
 
         foreach ($grupo as $r) {
-            Stock::sumar($r->id_producto, $r->cantidad, (int) $order->id_sucursal);
             $r->delete();
         }
 
@@ -243,7 +237,7 @@ class Ventas
             $p = $productos[$it->id_producto];
             $cant = round($it->cantidad * $veces, 3);
             $hay = Stock::de($p->id, (int) $order->id_sucursal, true);
-            if ($hay + 1e-9 < $cant) {
+            if ($hay + 1e-9 < $this->enVenta($order, $p->id) + $cant) {
                 throw new \DomainException('No alcanza el stock: de '.$p->nombre.' quedan '.$this->cant($hay).'.');
             }
             $lineas[] = ['p' => $p, 'cant' => $cant, 'lista' => $p->monto * $cant];
@@ -283,14 +277,13 @@ class Ventas
             $product = Product::whereKey($item->id_producto)->lockForUpdate()->firstOrFail();
             $nueva = $this->cantidadValida($nueva, $product);
 
-            $delta = round($nueva - $item->cantidad, 3);
-            $sid = (int) $order->id_sucursal;
-            $hay = Stock::de($product->id, $sid, true);
-            if ($delta > 0 && $hay + 1e-9 < $delta) {
-                throw new \DomainException('Con el stock actual podés llegar hasta '.$this->cant($item->cantidad + $hay).' '.$this->unidad($product, 2).'.');
+            if ($nueva > $item->cantidad) {
+                $otros = $this->enVenta($order, $product->id, $item->id);
+                $hay = Stock::de($product->id, (int) $order->id_sucursal, true);
+                if ($hay + 1e-9 < $otros + $nueva) {
+                    throw new \DomainException('Con el stock actual podés llegar hasta '.$this->cant(max(0, $hay - $otros)).' '.$this->unidad($product, 2).'.');
+                }
             }
-
-            Stock::sumar($product->id, -$delta, $sid);
             $item->cantidad = $nueva;
             $item->save();
             $this->recalcular($order);
@@ -306,8 +299,7 @@ class Ventas
                 ? OrderProduct::where('id_order', $order->id)->where('combo_grupo', $item->combo_grupo)->get()
                 : collect([$item]);
             foreach ($renglones as $r) {
-                Stock::sumar($r->id_producto, $r->cantidad, (int) $order->id_sucursal);
-                $r->delete();
+                $r->delete(); // sin cobrar todavia no tomo stock
             }
             $this->recalcular($order);
         });
@@ -322,13 +314,15 @@ class Ventas
         });
     }
 
-    /** Anula una venta SIN cobrar: devuelve el stock y la borra. */
+    /** Anula una venta SIN cobrar y la borra (no tomo stock: se descuenta recien al cobrar). */
     public function anular(Order $order): void
     {
         DB::transaction(function () use ($order) {
             $order = $this->ordenEditable($order);
-            foreach ($order->productos as $p) {
-                Stock::sumar($p->id_producto, $p->cantidad, (int) $order->id_sucursal);
+            if ($order->stock_descontado) { // por las dudas (no deberia pasar con una venta sin cobrar)
+                foreach ($order->productos as $p) {
+                    Stock::sumar($p->id_producto, $p->cantidad, (int) $order->id_sucursal);
+                }
             }
             $order->productos()->delete();
             $order->servicios()->delete();
@@ -444,6 +438,11 @@ class Ventas
                 }
             }
 
+            // stock: se descuenta ACA, todo junto. Las filas de los productos se bloquean (en orden de id,
+            // para que dos cajas no se traben entre si): si otra caja cobro la ultima unidad, esta espera
+            // y despues ve el stock real, asi dos ventas nunca se llevan la misma unidad.
+            $this->descontarStock($order);
+
             $idDeuda = 0;
             if ($fiado > 0) {
                 $idDeuda = Deuda::create([
@@ -476,6 +475,7 @@ class Ventas
                 'fiado' => $fiado,
                 'id_deuda' => $idDeuda,
                 'completada' => 1,
+                'stock_descontado' => 1,
             ])->save();
 
             return $order->fresh();
@@ -483,6 +483,52 @@ class Ventas
     }
 
     // ------------------------------------------------------------ helpers
+
+    /** cuanto de ese producto ya hay cargado en la venta (menos un renglon, si se esta cambiando) */
+    private function enVenta(Order $order, int $idProducto, ?int $menosRenglon = null): float
+    {
+        return round((float) OrderProduct::where('id_order', $order->id)->where('id_producto', $idProducto)
+            ->when($menosRenglon, fn ($q) => $q->where('id', '!=', $menosRenglon))->sum('cantidad'), 3);
+    }
+
+    private function exigirStock(Product $p, int $sid, float $necesita): void
+    {
+        $hay = Stock::de($p->id, $sid, true);
+        if ($hay + 1e-9 < $necesita) {
+            throw new \DomainException($hay > 0
+                ? 'Solo quedan '.$this->cant($hay).' '.$this->unidad($p, $hay).' de '.$p->nombre.' en stock.'
+                : $p->nombre.' no tiene stock.');
+        }
+    }
+
+    /** al cobrar: controla todo el stock de la venta con las filas bloqueadas y recien ahi lo descuenta */
+    private function descontarStock(Order $order): void
+    {
+        if ($order->stock_descontado) {
+            return;
+        }
+        $sid = (int) $order->id_sucursal;
+        $porProducto = OrderProduct::where('id_order', $order->id)->get()->groupBy('id_producto')
+            ->map(fn ($g) => round($g->sum('cantidad'), 3))->sortKeys();
+        $productos = Product::whereIn('id', $porProducto->keys())->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $faltan = [];
+        foreach ($porProducto as $id => $cant) {
+            $p = $productos[$id] ?? null;
+            if (! $p) {
+                throw new \DomainException('Un producto de la venta ya no existe: sacalo antes de cobrar.');
+            }
+            $hay = Stock::de($p->id, $sid, true);
+            if ($hay + 1e-9 < $cant) {
+                $faltan[] = $p->nombre.' (quedan '.$this->cant(max(0, $hay)).', en la venta hay '.$this->cant($cant).')';
+            }
+        }
+        if ($faltan) {
+            throw new \DomainException('No alcanza el stock para cobrar (se vendió mientras tanto): '.implode('; ', $faltan).'. Ajustá la cantidad y volvé a cobrar.');
+        }
+        foreach ($porProducto as $id => $cant) {
+            Stock::sumar($id, -$cant, $sid);
+        }
+    }
 
     /** monto = suma de cada renglon redondeado hacia arriba (igual que control-soft). */
     public function recalcular(Order $order): void

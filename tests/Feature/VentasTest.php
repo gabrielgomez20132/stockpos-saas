@@ -39,13 +39,15 @@ class VentasTest extends TestCase
         $o = $this->nuevaVenta();
 
         $this->postJson("/ventas/{$o->id}/items", ['codigo' => $p->codigo, 'cantidad' => '3'])->assertOk()->assertJsonPath('monto', 3000);
-        $this->assertEquals(7, $p->fresh()->quedan);
+        $this->assertEquals(10, $p->fresh()->quedan); // el stock se descuenta recien al cobrar
 
         // el cliente intenta mandar montos y "completada" a mano: se ignoran
         $this->post("/ventas/{$o->id}/cobrar", ['id_cliente' => 2, 'canal_id' => 1, 'medios' => ['efectivo'], 'pago' => 5000, 'monto' => 1, 'completada' => 1, 'pago_efec' => 1])
             ->assertSessionHasNoErrors();
         $o->refresh();
         $this->assertTrue($o->completada);
+        $this->assertTrue($o->stock_descontado);
+        $this->assertEquals(7, $p->fresh()->quedan);
         $this->assertEquals(3000, $o->monto);
         $this->assertEquals(3000, $o->pago_efec);
         $this->assertSame(FormasPago::EFECTIVO, $o->id_forma_pago);
@@ -64,10 +66,13 @@ class VentasTest extends TestCase
         $this->agregar($o, $p, -1)->assertStatus(422);
         $kg = $this->producto(['_cat' => 'Fiambrería', '_unidad' => 'Kg', 'monto' => 10000, 'quedan' => 5]);
         $this->agregar($o, $kg, '0,250')->assertOk()->assertJsonPath('monto', 2500);
-        $this->assertEquals(4.75, $kg->fresh()->quedan);
+        $this->assertEquals(5, $kg->fresh()->quedan);
+        // lo que ya esta en la venta cuenta: 2 + 1 no entra
+        $this->agregar($o, $p, 2)->assertOk();
+        $this->agregar($o, $p, 1)->assertStatus(422);
     }
 
-    public function test_editar_cantidad_y_quitar_devuelve_stock(): void
+    public function test_editar_cantidad_y_quitar_no_mueven_stock(): void
     {
         $this->actingAs($this->admin);
         $this->abrirCaja();
@@ -75,8 +80,9 @@ class VentasTest extends TestCase
         $o = $this->nuevaVenta();
         $item = $this->agregar($o, $p, 2)->json('items.0.id');
         $this->putJson("/ventas/items/{$item}", ['cantidad' => 5])->assertOk()->assertJsonPath('monto', 5000);
-        $this->assertEquals(5, $p->fresh()->quedan);
-        $this->putJson("/ventas/items/{$item}", ['cantidad' => 20])->assertStatus(422);
+        $this->assertEquals(10, $p->fresh()->quedan);
+        $this->putJson("/ventas/items/{$item}", ['cantidad' => 10])->assertOk();
+        $this->putJson("/ventas/items/{$item}", ['cantidad' => 11])->assertStatus(422);
         $this->deleteJson("/ventas/items/{$item}")->assertOk()->assertJsonPath('monto', 0);
         $this->assertEquals(10, $p->fresh()->quedan);
     }
