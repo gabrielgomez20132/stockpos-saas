@@ -36,6 +36,7 @@ class RecorridoCompletoTest extends TestCase
         $this->put('/configuracion/multisucursal', ['habilitado' => true]);
         $this->put('/configuracion/presupuestos', ['habilitadas' => true]);
         $this->put('/configuracion/remitos', ['habilitadas' => true]);
+        $this->put('/configuracion/combos', ['habilitadas' => true]);
         $this->post('/configuracion/sucursales', ['nombre' => 'Norte']);
         Configuracion::limpiarCache();
         $norte = Sucursal::where('nombre', 'Norte')->first();

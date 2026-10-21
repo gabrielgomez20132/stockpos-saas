@@ -178,6 +178,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
         Route::delete('configuracion/valores/{valor}', [ConfiguracionController::class, 'borrarValor'])->name('atributos.valores.destroy');
         Route::put('configuracion/listas-precios', [ConfiguracionController::class, 'listasPrecios'])->name('configuracion.listas');
         Route::put('configuracion/presupuestos', [ConfiguracionController::class, 'presupuestos'])->name('configuracion.presupuestos');
+        Route::put('configuracion/combos', [ConfiguracionController::class, 'combos'])->name('configuracion.combos');
         Route::put('configuracion/remitos', [ConfiguracionController::class, 'remitos'])->name('configuracion.remitos');
         Route::put('configuracion/multisucursal', [ConfiguracionController::class, 'multisucursal'])->name('configuracion.multisucursal');
         Route::post('configuracion/sucursales', [SucursalController::class, 'store'])->name('sucursales.store');
@@ -237,7 +238,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
         Route::get('{remito}/imprimir', [RemitoController::class, 'imprimir'])->whereNumber('remito')->name('imprimir');
     });
 
-    Route::middleware('permiso:combos')->group(function () {
+    Route::middleware(['permiso:combos', 'modulo:combos'])->group(function () {
         Route::post('combos/{combo}/activar', [ComboController::class, 'activar'])->name('combos.activar');
         Route::resource('combos', ComboController::class)->except('show');
     });

@@ -129,7 +129,7 @@ class Ventas
     public function buscarCombos(string $q, int $limite = 5)
     {
         $q = trim($q);
-        if ($q === '') {
+        if ($q === '' || ! \App\Models\Configuracion::combos()) {
             return collect();
         }
         $exacto = Combo::vigentes()->where('codigo', $q)->get();
@@ -151,6 +151,9 @@ class Ventas
     public function agregarCombo(Order $order, Combo $combo, int $veces = 1): void
     {
         $this->exigirCaja();
+        if (! \App\Models\Configuracion::combos()) {
+            throw new \DomainException('Los combos y promos están deshabilitados. Habilitalos en Configuración.');
+        }
         if ($veces < 1 || $veces > 999) {
             throw new \DomainException('La cantidad de combos tiene que ser un número entero mayor a cero.');
         }

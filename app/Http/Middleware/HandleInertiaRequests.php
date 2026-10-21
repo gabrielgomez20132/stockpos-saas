@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                 'multisucursal' => SucursalActual::habilitado(),
                 'presupuestos' => (bool) Configuracion::get('presupuestos_habilitadas', false),
                 'remitos' => (bool) Configuracion::get('remitos_habilitadas', false),
+                'combos' => Configuracion::combos(),
             ],
             'sucursal' => fn () => $user && SucursalActual::habilitado() ? [
                 'id' => SucursalActual::id(),

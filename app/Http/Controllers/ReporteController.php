@@ -76,14 +76,21 @@ class ReporteController extends Controller
                 'ingreso' => round((float) $r->ingreso, 2), 'ganancia' => round((float) $r->ganancia, 2)]);
 
         $ordenes = $filtro(DB::table('orders'))->where('completada', 1)->where('id_type', Order::TIPO_PRODUCTOS)->whereBetween('created_at', [$desde, $hasta]);
-        $medios = [];
-        foreach (['pago_efec' => 'Efectivo', 'pago_tarj_debito' => 'Débito', 'pago_tarj_cred' => 'Crédito', 'pago_qr' => 'QR',
-            'pago_transf' => 'Transferencia', 'pago_cheque' => 'Cheque', 'pago_dolares' => 'Dólares', 'pago_vale' => 'Vale', 'fiado' => 'Cuenta corriente'] as $col => $n) {
-            $s = round((float) (clone $ordenes)->sum($col), 2);
-            if ($s > 0) {
-                $medios[] = ['medio' => $n, 'total' => $s];
-            }
+        // desglose por medio de pago: TODOS los medios (aunque esten en 0), con lo cobrado y en cuantas ventas se uso
+        $cols = \App\Support\FormasPago::COLUMNAS + ['fiado' => 'fiado'];
+        $sel = [];
+        foreach ($cols as $m => $col) {
+            $sel[] = "COALESCE(SUM($col), 0) as t_$m, COALESCE(SUM(CASE WHEN $col > 0 THEN 1 ELSE 0 END), 0) as n_$m";
         }
+        $suma = (clone $ordenes)->selectRaw(implode(', ', $sel))->first();
+        $cobrado = round(array_sum(array_map(fn ($m) => (float) $suma->{'t_'.$m}, array_keys($cols))), 2);
+        $pagos = [];
+        foreach (array_keys($cols) as $m) {
+            $t = round((float) $suma->{'t_'.$m}, 2);
+            $pagos[] = ['medio' => $m, 'nombre' => \App\Support\FormasPago::ETIQUETAS[$m], 'total' => $t, 'ventas' => (int) $suma->{'n_'.$m},
+                'porcentaje' => $cobrado > 0 ? round($t / $cobrado * 100, 1) : 0];
+        }
+        $medios = collect($pagos)->where('total', '>', 0)->map(fn ($p) => ['medio' => $p['nombre'], 'total' => $p['total']])->values()->all();
 
         $ingreso = $porDia->sum('ingreso');
         $costo = $porDia->sum('costo');
@@ -93,8 +100,11 @@ class ReporteController extends Controller
             'porDia' => $porDia, 'top' => $top, 'medios' => $medios,
             'totales' => [
                 'ingreso' => round($ingreso, 2), 'costo' => round($costo, 2), 'ganancia' => round($ingreso - $costo, 2),
-                'ventas' => (clone $ordenes)->count(), 'descuentos' => round((float) (clone $ordenes)->sum('descuento'), 2),
+                'ventas' => $nVentas = (clone $ordenes)->count(), 'descuentos' => round((float) (clone $ordenes)->sum('descuento'), 2),
+                'cobrado' => $cobrado, 'ticket' => $nVentas ? round($cobrado / $nVentas, 2) : 0,
+                'margen' => $ingreso > 0 ? round(($ingreso - $costo) / $ingreso * 100, 1) : 0,
             ],
+            'pagos' => $pagos,
             'sucursal' => $multi ? ($sid === null ? 'todas' : (string) $sid) : null,
             'sucursales' => $puedeTodas ? $this->comparar($desde, $hasta) : null,
         ]);

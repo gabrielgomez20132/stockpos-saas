@@ -11,11 +11,15 @@ use Symfony\Component\HttpFoundation\Response;
 /** El modulo tiene que estar habilitado en Configuracion. */
 class EnsureModulo
 {
-    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal', 'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos'];
+    private const NOMBRES = ['listas_precios' => 'Listas de precios', 'multisucursal' => 'Multisucursal', 'presupuestos' => 'Presupuestos', 'remitos' => 'Remitos', 'combos' => 'Combos y promos'];
 
     public function handle(Request $request, Closure $next, string $modulo): Response
     {
-        $on = $modulo === 'multisucursal' ? SucursalActual::habilitado() : (bool) Configuracion::get($modulo.'_habilitadas', false);
+        $on = match ($modulo) {
+            'multisucursal' => SucursalActual::habilitado(),
+            'combos' => Configuracion::combos(),
+            default => (bool) Configuracion::get($modulo.'_habilitadas', false),
+        };
         if (! $on) {
             $msg = 'El módulo "'.(self::NOMBRES[$modulo] ?? $modulo).'" está deshabilitado. Habilitalo en Configuración.';
             if ($request->expectsJson()) {

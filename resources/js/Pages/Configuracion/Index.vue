@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { Layers, Plus, X, Trash2, Pencil, Check, FileSpreadsheet, Store, ArrowRight, FileText, ClipboardList } from 'lucide-vue-next';
+import { Layers, Plus, X, Trash2, Pencil, Check, FileSpreadsheet, Store, ArrowRight, FileText, ClipboardList, Gift } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import Interruptor from '@/Components/Interruptor.vue';
 import Modal from '@/Components/Modal.vue';
@@ -13,7 +13,7 @@ import { confirmar } from '@/lib/confirmar';
 
 const props = defineProps({
     variantes: Boolean, atributos: Array, productosConVariantes: Number,
-    listasPrecios: Boolean, presupuestos: Boolean, remitos: Boolean, multisucursal: Boolean, puedeSucursales: Boolean, sucursales: Array,
+    listasPrecios: Boolean, combos: Boolean, cantidadCombos: Number, presupuestos: Boolean, remitos: Boolean, multisucursal: Boolean, puedeSucursales: Boolean, sucursales: Array,
 });
 
 function modulo(url, campo, valor) {
@@ -94,6 +94,17 @@ async function borrar(a) {
             <Link v-if="listasPrecios" href="/listas-precios" class="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-petroleo-700 underline dark:text-petroleo-200">Ir a Listas de precios<ArrowRight class="size-3.5" /></Link>
         </div>
         <Interruptor :activo="listasPrecios" :disabled="cambiando" etiqueta="Habilitar listas de precios" @cambiar="modulo('/configuracion/listas-precios', 'habilitadas', !listasPrecios)" />
+    </section>
+
+    <section class="panel mb-5 flex flex-wrap items-center gap-4 p-5">
+        <Gift class="size-8 text-petroleo-400" stroke-width="1.5" />
+        <div class="min-w-0 flex-1 basis-64">
+            <h2 class="font-semibold">Combos y promos</h2>
+            <p class="text-sm text-petroleo-500">Varios productos a un precio especial (ej: Fernet + Coca), con su propio código para escanear y fechas de vigencia. Descuentan el stock de cada producto.</p>
+            <p v-if="cantidadCombos" class="mt-1 text-xs text-petroleo-500">{{ cantidadCombos }} combos cargados{{ combos ? '' : ': deshabilitados no aparecen al vender, pero se conservan' }}.</p>
+            <Link v-if="combos" href="/combos" class="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-petroleo-700 underline dark:text-petroleo-200">Ir a Combos y promos<ArrowRight class="size-3.5" /></Link>
+        </div>
+        <Interruptor :activo="combos" :disabled="cambiando" etiqueta="Habilitar combos y promos" @cambiar="modulo('/configuracion/combos', 'habilitadas', !combos)" />
     </section>
 
     <section class="panel mb-5 flex flex-wrap items-center gap-4 p-5">

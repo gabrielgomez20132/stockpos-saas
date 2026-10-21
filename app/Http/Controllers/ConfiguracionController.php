@@ -26,6 +26,8 @@ class ConfiguracionController extends Controller
             'multisucursal' => $multi,
             'presupuestos' => (bool) Configuracion::get('presupuestos_habilitadas', false),
             'remitos' => (bool) Configuracion::get('remitos_habilitadas', false),
+            'combos' => Configuracion::combos(),
+            'cantidadCombos' => \App\Models\Combo::count(),
             'puedeSucursales' => $request->user()->hasPermission('encargados'),
             'sucursales' => Sucursal::orderBy('id')->get()->map(fn ($s) => $s->only(['id', 'nombre', 'direccion', 'telefono', 'activa']) + [
                 'encargados' => User::where('id_sucursal', $s->id)->count(),
@@ -65,6 +67,16 @@ class ConfiguracionController extends Controller
         return $this->ok($d['habilitadas']
             ? 'Presupuestos habilitados: los encontrás en el menú, en Ventas.'
             : 'Presupuestos deshabilitados. Los que ya hiciste se conservan.');
+    }
+
+    public function combos(Request $request)
+    {
+        $d = $request->validate(['habilitadas' => ['required', 'boolean']]);
+        Configuracion::set('combos_habilitadas', (bool) $d['habilitadas']);
+
+        return $this->ok($d['habilitadas']
+            ? 'Combos y promos habilitados: los encontrás en el menú, en Mercadería, y se venden escaneando su código.'
+            : 'Combos y promos deshabilitados: no aparecen al vender. Los que ya cargaste se conservan.');
     }
 
     public function remitos(Request $request)

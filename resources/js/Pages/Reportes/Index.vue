@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
-import { ChartColumn } from 'lucide-vue-next';
+import { ChartColumn, DollarSign, TrendingUp, Wallet, ShoppingBag, CreditCard, Banknote, QrCode, Landmark, ScrollText, TicketPercent, BookUser, Receipt } from 'lucide-vue-next';
 import Encabezado from '@/Components/Encabezado.vue';
 import Boton from '@/Components/Boton.vue';
 import Dato from '@/Components/Dato.vue';
@@ -61,10 +61,16 @@ const serieSuc = computed(() => [
 ]);
 const opcMedios = computed(() => ({
     ...base(), labels: datos.value?.medios.map((m) => m.medio) ?? [],
-    colors: ['#0e3b43', '#236f77', '#73afb4', '#f2b705', '#a87c00', '#1f7a4a', '#b83a26', '#a9cfd2', '#6b7f84'],
+    colors: (datos.value?.pagos ?? []).filter((p) => p.total > 0).map((p) => colores[p.medio]),
     legend: { position: 'bottom' }, stroke: { width: 0 },
     plotOptions: { pie: { donut: { size: '62%' } } },
 }));
+
+// desglose de pagos
+const iconos = { efectivo: Banknote, debito: CreditCard, credito: CreditCard, qr: QrCode, transferencia: Landmark, cheque: ScrollText, dolares: DollarSign, vale: TicketPercent, fiado: BookUser };
+const colores = { efectivo: '#1f7a4a', debito: '#236f77', credito: '#0e3b43', qr: '#73afb4', transferencia: '#f2b705', cheque: '#a87c00', dolares: '#6b7f84', vale: '#a9cfd2', fiado: '#b83a26' };
+const pctEfectivo = computed(() => datos.value?.pagos?.find((p) => p.medio === 'efectivo')?.porcentaje ?? 0);
+const pct = (v) => `${String(v).replace('.', ',')}%`;
 </script>
 
 <template>
@@ -89,17 +95,48 @@ const opcMedios = computed(() => ({
     </div>
 
     <template v-if="datos">
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Dato titulo="Vendido" :valor="plata(datos.totales.ingreso)" :nota="datos.totales.ventas + ' ventas'" />
-            <Dato titulo="Costo de la mercadería" :valor="plata(datos.totales.costo)" />
-            <Dato titulo="Ganancia" :valor="plata(datos.totales.ganancia)" tono="entra" :nota="datos.totales.ingreso ? Math.round(datos.totales.ganancia / datos.totales.ingreso * 100) + '% sobre lo vendido' : ''" />
-            <Dato titulo="Descuentos" :valor="plata(datos.totales.descuentos)" :tono="datos.totales.descuentos > 0 ? 'sale' : 'normal'" />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Dato titulo="Total vendido" :valor="plata(datos.totales.ingreso)" :icono="DollarSign" color="verde"
+                :nota="datos.totales.descuentos > 0 ? `Descuentos: ${plata(datos.totales.descuentos)}` : 'Sin descuentos'" />
+            <Dato titulo="Ganancia bruta" :valor="plata(datos.totales.ganancia)" tono="entra" :icono="TrendingUp" color="verde"
+                :nota="`Margen: ${pct(datos.totales.margen)} · costo ${plata(datos.totales.costo)}`" />
+            <Dato titulo="Ventas en efectivo" :valor="pct(pctEfectivo)" :icono="Wallet" color="ambar"
+                :nota="`${pct(Math.round((100 - pctEfectivo) * 10) / 10)} con otros medios`" />
+            <Dato titulo="Total de ventas" :valor="datos.totales.ventas" :icono="ShoppingBag" :nota="`Ticket prom.: ${plata(datos.totales.ticket)}`" />
         </div>
 
-        <div v-if="datos.porDia.length" class="mt-5 grid gap-5 lg:grid-cols-[1fr_22rem]">
-            <section class="panel p-4"><h2 class="mb-2 font-semibold">Por día</h2><VueApexCharts type="bar" height="320" :options="opcDia" :series="serieDia" /></section>
-            <section class="panel p-4"><h2 class="mb-2 font-semibold">Cómo pagaron</h2><VueApexCharts type="donut" height="320" :options="opcMedios" :series="datos.medios.map((m) => m.total)" /></section>
+        <div class="mt-5 grid gap-5 lg:grid-cols-[1fr_22rem]">
+            <section class="panel p-5">
+                <h2 class="mb-4 flex items-center gap-2 font-semibold"><CreditCard class="size-5 text-petroleo-400" />Desglose de pagos</h2>
+                <ul class="space-y-3.5">
+                    <li v-for="p in datos.pagos" :key="p.medio" :class="{ 'opacity-45': !p.total }">
+                        <div class="flex items-center gap-2 text-sm">
+                            <component :is="iconos[p.medio]" class="size-4 shrink-0" :style="{ color: colores[p.medio] }" />
+                            <span class="min-w-0 flex-1 truncate">{{ p.nombre }}</span>
+                            <span class="hidden text-xs text-petroleo-500 sm:inline">{{ p.ventas }} {{ p.ventas === 1 ? 'venta' : 'ventas' }}</span>
+                            <span class="w-28 text-right font-semibold tabular-nums">{{ plata(p.total) }}</span>
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-3">
+                            <div class="h-2 flex-1 overflow-hidden rounded-full bg-petroleo-100 dark:bg-petroleo-800" role="progressbar" :aria-valuenow="p.porcentaje" aria-valuemin="0" aria-valuemax="100" :aria-label="p.nombre">
+                                <div class="h-full rounded-full transition-[width] duration-500" :style="{ width: p.porcentaje + '%', background: colores[p.medio] }" />
+                            </div>
+                            <span class="w-12 text-right text-xs text-petroleo-500 tabular-nums">{{ pct(p.porcentaje) }}</span>
+                        </div>
+                    </li>
+                </ul>
+                <dl class="mt-5 space-y-2 border-t border-petroleo-100 pt-4 text-sm dark:border-petroleo-800">
+                    <div class="flex justify-between gap-2"><dt class="flex items-center gap-2 text-petroleo-500"><Receipt class="size-4" />Total cobrado</dt><dd class="font-bold tabular-nums">{{ plata(datos.totales.cobrado) }}</dd></div>
+                    <div class="flex justify-between gap-2"><dt class="flex items-center gap-2 text-petroleo-500"><ShoppingBag class="size-4" />Ticket promedio</dt><dd class="font-semibold tabular-nums">{{ plata(datos.totales.ticket) }}</dd></div>
+                </dl>
+                <p class="mt-2 text-xs text-petroleo-500">Una venta pagada con dos medios cuenta en los dos. Cuenta corriente es lo que quedó fiado.</p>
+            </section>
+            <section class="panel p-4"><h2 class="mb-2 font-semibold">Cómo pagaron</h2>
+                <VueApexCharts v-if="datos.medios.length" type="donut" height="320" :options="opcMedios" :series="datos.medios.map((m) => m.total)" />
+                <p v-else class="py-20 text-center text-sm text-petroleo-500">Sin cobros en el período.</p>
+            </section>
         </div>
+
+        <section v-if="datos.porDia.length" class="panel mt-5 p-4"><h2 class="mb-2 font-semibold">Por día</h2><VueApexCharts type="bar" height="320" :options="opcDia" :series="serieDia" /></section>
 
         <section v-if="datos.sucursales?.length > 1" class="panel mt-5 overflow-hidden">
             <h2 class="border-b border-petroleo-100 px-5 py-3.5 font-semibold dark:border-petroleo-800">Comparación de sucursales</h2>

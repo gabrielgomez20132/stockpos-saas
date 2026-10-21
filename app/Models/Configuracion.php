@@ -45,6 +45,14 @@ class Configuracion extends Model
         return (bool) static::get('variantes_habilitadas', false);
     }
 
+    /** combos y promos: si nunca se tocó el interruptor, quedan habilitados solo si ya hay combos cargados */
+    public static function combos(): bool
+    {
+        $v = static::get('combos_habilitadas');
+
+        return $v === null ? Combo::query()->exists() : (bool) $v;
+    }
+
     public static function limpiarCache(): void
     {
         self::$cache = [];

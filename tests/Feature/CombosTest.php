@@ -9,6 +9,46 @@ use Tests\TestCase;
 
 class CombosTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \App\Models\Configuracion::set('combos_habilitadas', true);
+    }
+
+    public function test_se_habilitan_desde_configuracion(): void
+    {
+        \App\Models\Configuracion::limpiarCache();
+        \App\Models\Configuracion::query()->where('clave', 'combos_habilitadas')->delete();
+        \App\Models\Configuracion::limpiarCache();
+        $this->actingAs($this->admin);
+        // instalacion nueva sin combos: arranca deshabilitado
+        $this->get('/combos')->assertRedirect('/inicio');
+        $this->get('/inicio')->assertInertia(fn ($p) => $p->where('modulos.combos', false)->etc());
+        $this->get('/configuracion')->assertInertia(fn ($p) => $p->where('combos', false)->etc());
+
+        $this->put('/configuracion/combos', ['habilitadas' => true])->assertSessionHas('ok');
+        $this->get('/inicio')->assertInertia(fn ($p) => $p->where('modulos.combos', true)->etc());
+        $this->abrirCaja(0);
+        [$combo] = $this->comboFernet();
+        $this->post('/ventas');
+        $o = Order::latest('id')->first();
+        $this->getJson('/buscar/productos?q=PROMO1')->assertJsonPath('0.tipo', 'combo');
+
+        // deshabilitado: no aparece al vender ni se puede agregar, pero se conserva
+        $this->put('/configuracion/combos', ['habilitadas' => false])->assertSessionHas('ok');
+        $this->getJson('/buscar/productos?q=PROMO1')->assertJsonCount(0);
+        $this->postJson("/ventas/{$o->id}/items", ['codigo' => 'PROMO1', 'cantidad' => 1])->assertStatus(422);
+        $this->postJson("/ventas/{$o->id}/items", ['combo_id' => $combo->id, 'cantidad' => 1])->assertStatus(422);
+        $this->get('/combos')->assertRedirect('/inicio');
+        $this->assertTrue(Combo::whereKey($combo->id)->exists());
+        $this->assertEquals(0, $o->fresh()->monto);
+
+        // una base que ya tenia combos (sin tocar el interruptor) los sigue teniendo habilitados
+        \App\Models\Configuracion::query()->where('clave', 'combos_habilitadas')->delete();
+        \App\Models\Configuracion::limpiarCache();
+        $this->get('/combos')->assertOk();
+    }
+
     private function comboFernet(array $extra = []): array
     {
         $fernet = $this->producto(['nombre' => 'Fernet 750', 'monto' => 15000, 'costo' => 11000, 'quedan' => 10]);

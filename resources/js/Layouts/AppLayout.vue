@@ -40,7 +40,7 @@ const secciones = computed(() => [
     ] },
     { titulo: 'Mercadería', items: [
         puede('productos') && { nombre: 'Productos', url: '/productos', icono: Package },
-        puede('combos') && { nombre: 'Combos y promos', url: '/combos', icono: Gift },
+        puede('combos') && modulos.value.combos && { nombre: 'Combos y promos', url: '/combos', icono: Gift },
         puede('listas-precios') && modulos.value.listas_precios && { nombre: 'Listas de precios', url: '/listas-precios', icono: FileSpreadsheet },
         puede('transferencias') && modulos.value.multisucursal && { nombre: 'Transferencias', url: '/transferencias', icono: ArrowLeftRight },
         puede('productos') && { nombre: 'Etiquetas', url: '/etiquetas', icono: Barcode },
