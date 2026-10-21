@@ -3,7 +3,7 @@
 # Mismo esquema que control-soft (kiosco):
 #   - el codigo y public/uploads viven en el HOST (bind mount "./"): un rebuild no los toca
 #   - MySQL es el compartido del VPS (red externa mysql_default, host "mysql")
-#   - el nginx-proxy central entra por http://172.17.0.1:9011 (ver deploy/nginx-proxy/stokpos.conf)
+#   - el nginx-proxy central entra por http://172.17.0.1:9013 (ver deploy/nginx-proxy/stokpos.conf)
 #
 # Deploy / actualizacion:   ./deploy.sh
 # NO usar nunca:            docker compose down -v   /   docker volume prune
@@ -40,8 +40,8 @@ services:
     ports:
       # Solo en la IP interna de Docker: desde internet se entra unicamente por
       # el nginx-proxy (con HTTPS). Publicarlo en 0.0.0.0 dejaria el sitio
-      # abierto por http://IP:9011 salteando el proxy.
-      - "172.17.0.1:9011:80"
+      # abierto por http://IP:9013 salteando el proxy.
+      - "172.17.0.1:9013:80"
     depends_on:
       - stokpos_app
     networks:

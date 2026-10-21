@@ -4,7 +4,7 @@ Mismo esquema que **control-soft (kiosco)** en el VPS:
 
 ```
 Internet ──HTTPS──> nginx-proxy (central, /opt/docker/nginx-proxy)
-                       │  proxy_pass http://172.17.0.1:9011
+                       │  proxy_pass http://172.17.0.1:9013
                        ▼
                  stokpos_nginx (nginx:1.27-alpine)  ──fastcgi──>  stokpos_app (PHP 8.3-FPM)
                                                                        │ red mysql_default
@@ -16,7 +16,7 @@ Internet ──HTTPS──> nginx-proxy (central, /opt/docker/nginx-proxy)
 |---|---|---|
 | Carpeta | `/opt/docker/kiosco` | `/opt/docker/stokpos` |
 | Contenedores | `kiosco_app`, `kiosco_nginx` | `stokpos_app`, `stokpos_nginx` |
-| Puerto interno | `9010` | `9011` (solo en `172.17.0.1`) |
+| Puerto interno | `9010` | `9013` (solo en `172.17.0.1`) |
 | PHP | 7.4 + Composer 1 | 8.3 + Composer 2 |
 | Base | `kiosco` | `stokpos` (nueva; los datos se copian con un comando) |
 

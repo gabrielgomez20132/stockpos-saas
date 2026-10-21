@@ -24,7 +24,7 @@
 set -euo pipefail
 
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
-HOST_PORT="9011"
+HOST_PORT="9013"
 DO_PULL=1
 BRANCH="main"
 
