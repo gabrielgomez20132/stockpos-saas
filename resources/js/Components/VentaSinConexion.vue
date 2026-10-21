@@ -37,9 +37,22 @@ const resultados = computed(() => {
     return cat.value.productos.filter((p) => p.n.toLowerCase().includes(t) || p.c.toLowerCase().includes(t)).slice(0, 12);
 });
 
+// igual que en la venta normal: no se vende mas de lo que hay en stock
+// (el stock guardado en el equipo se descuenta con cada venta sin conexion)
+const fmtCant = (i, v) => `${cantidad(v)} ${i.unidad ?? ''}`.trim();
+function sinStock(i, quiere) {
+    toastError(i.stock > 0 ? `De ${i.nombre} solo quedan ${fmtCant(i, i.stock)} en stock.` : `${i.nombre} no tiene stock.`);
+    return false;
+}
 function agregar(p, cant = 1) {
     const ya = items.value.find((i) => i.id === p.id);
-    if (ya) ya.cantidad = Math.round((numero(ya.cantidad) + cant) * 1000) / 1000;
+    const nueva = Math.round(((ya ? numero(ya.cantidad) : 0) + cant) * 1000) / 1000;
+    if (nueva > p.q + 1e-9) {
+        sinStock({ nombre: p.n, stock: p.q, unidad: p.u }, nueva);
+        q.value = '';
+        return;
+    }
+    if (ya) ya.cantidad = nueva;
     else items.value.unshift({ id: p.id, nombre: p.n, codigo: p.c, monto: p.m, cantidad: cant, fraccionable: p.f, unidad: p.u, stock: p.q });
     q.value = '';
     ultima.value = null;
@@ -54,6 +67,7 @@ function mover(i, d) {
     const paso = i.fraccionable ? 0.1 : 1;
     const v = Math.round((numero(i.cantidad) + d * paso) * 1000) / 1000;
     if (v <= 0) items.value.splice(items.value.indexOf(i), 1);
+    else if (d > 0 && v > i.stock + 1e-9) sinStock(i, v);
     else i.cantidad = v;
 }
 const sub = (i) => Math.ceil(Math.round(i.monto * (numero(i.cantidad) || 0) * 1e4) / 1e4);
@@ -67,6 +81,8 @@ const guardando = ref(false);
 async function cobrar() {
     if (!items.value.length) return;
     if (vuelto.value !== null && vuelto.value < 0) return toastError('El efectivo recibido no alcanza.');
+    const falta = items.value.find((i) => (numero(i.cantidad) || 0) > i.stock + 1e-9);
+    if (falta) return sinStock(falta);
     const malos = items.value.filter((i) => !i.fraccionable && Math.abs(numero(i.cantidad) - Math.round(numero(i.cantidad))) > 1e-9);
     if (malos.length) return toastError(`${malos[0].nombre} se vende por unidad entera.`);
     guardando.value = true;
@@ -157,8 +173,8 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                     <input ref="buscador" v-model="q" class="campo pl-9 text-lg" placeholder="Escaneá o escribí el producto" @keydown.enter.prevent="enter" />
                     <ul v-if="resultados.length" class="absolute inset-x-3 top-full z-20 mt-1 max-h-80 divide-y divide-petroleo-50 overflow-y-auto rounded-xl border border-petroleo-100 bg-white shadow-xl dark:divide-petroleo-800 dark:border-petroleo-700 dark:bg-petroleo-900">
                         <li v-for="p in resultados" :key="p.id">
-                            <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-petroleo-50 dark:hover:bg-petroleo-800" @click="agregar(p)">
-                                <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ p.n }}</span><span class="text-xs text-petroleo-400">{{ p.c }} · stock {{ cantidad(p.q) }}</span></span>
+                            <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-petroleo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-petroleo-800" :disabled="p.q <= 0" @click="agregar(p)">
+                                <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ p.n }}</span><span class="text-xs" :class="p.q > 0 ? 'text-petroleo-400' : 'font-semibold text-sale'">{{ p.c }} · {{ p.q > 0 ? `stock ${cantidad(p.q)}` : 'sin stock' }}</span></span>
                                 <span class="cifra-suave">{{ plata(p.m) }}</span>
                             </button>
                         </li>
@@ -167,7 +183,7 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                 <ul v-if="items.length" class="flex-1 divide-y divide-petroleo-50 overflow-y-auto dark:divide-petroleo-800">
                     <li v-for="i in items" :key="i.id" class="flex flex-wrap items-center gap-3 px-4 py-2.5">
                         <div class="min-w-0 flex-1 basis-40"><p class="truncate font-medium">{{ i.nombre }}</p>
-                            <p class="text-xs" :class="numero(i.cantidad) > i.stock ? 'font-semibold text-cartel-700' : 'text-petroleo-400'">{{ plata(i.monto) }} c/u{{ numero(i.cantidad) > i.stock ? ` · en el sistema había ${cantidad(i.stock)}` : '' }}</p></div>
+                            <p class="text-xs" :class="numero(i.cantidad) > i.stock ? 'font-semibold text-sale' : 'text-petroleo-400'">{{ plata(i.monto) }} c/u · {{ numero(i.cantidad) > i.stock ? `solo quedan ${fmtCant(i, i.stock)}` : `stock ${fmtCant(i, i.stock)}` }}</p></div>
                         <div class="flex items-center rounded-xl border border-petroleo-200 dark:border-petroleo-700">
                             <button type="button" class="grid size-10 place-items-center" aria-label="Menos" @click="mover(i, -1)"><Minus class="size-4" /></button>
                             <input v-model="i.cantidad" inputmode="decimal" class="w-14 bg-transparent text-center font-semibold outline-none" />
