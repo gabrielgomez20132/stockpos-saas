@@ -7,6 +7,7 @@ import { estado, catalogo, guardarVenta, ventas as pendientesDb, descartar, sinc
 import { toast, toastError } from '@/lib/toast';
 import { plata, cantidad, numero } from '@/lib/formato';
 import { confirmar } from '@/lib/confirmar';
+import { crearLectora } from '@/lib/lectora';
 import { leerEtiqueta, codigosPlu, importe as importeTexto } from '@/lib/balanza';
 
 const emit = defineEmits(['cerrar']);
@@ -71,7 +72,9 @@ function agregar(p, cant = 1, deEtiqueta = false) {
     ultima.value = null;
     nextTick(() => buscador.value?.focus());
 }
+const lectora = crearLectora(() => enter());
 function enter() {
+    lectora.cancelar();
     const t = q.value.trim();
     if (pan.value?.balanza && cat.value && !cat.value.productos.some((p) => p.c === t)) {
         let e = null;
@@ -199,7 +202,7 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                         <input v-if="pan?.importe" v-model="imp" inputmode="decimal" class="campo w-28 shrink-0 text-center text-lg" placeholder="$ importe" aria-label="Vender por importe en pesos (opcional)" title="Opcional: escribí el importe (ej: 1500) y después el producto por peso" />
                         <div class="relative min-w-0 flex-1">
                             <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-petroleo-300" />
-                            <input ref="buscador" v-model="q" class="campo pl-9 text-lg" placeholder="Escaneá o escribí el producto" @keydown.enter.prevent="enter" />
+                            <input ref="buscador" v-model="q" class="campo pl-9 text-lg" placeholder="Escaneá o escribí el producto" @keydown.enter.prevent="enter" @input="lectora.entrada" />
                         </div>
                     </div>
                     <ul v-if="resultados.length" class="absolute inset-x-3 top-full z-20 mt-1 max-h-80 divide-y divide-petroleo-50 overflow-y-auto rounded-xl border border-petroleo-100 bg-white shadow-xl dark:divide-petroleo-800 dark:border-petroleo-700 dark:bg-petroleo-900">

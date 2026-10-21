@@ -16,6 +16,7 @@ import http, { mensajeError } from '@/lib/http';
 import { toast, toastError } from '@/lib/toast';
 import { confirmar } from '@/lib/confirmar';
 import { importe as importeTexto } from '@/lib/balanza';
+import { crearLectora } from '@/lib/lectora';
 import { plata, cantidad, unidad, numero, fecha, hora } from '@/lib/formato';
 
 const props = defineProps({
@@ -95,12 +96,15 @@ async function agregar(producto = null) {
     }
 }
 
+// lectora sin Enter al final: se agrega sola al terminar la rafaga
+const lectora = crearLectora(() => { if (!ocupado.value) { sugerencias.value = []; agregar(null); } });
 function teclaProducto(e) {
     if (e.key === 'ArrowDown' && sugerencias.value.length) { e.preventDefault(); resaltada.value = Math.min(resaltada.value + 1, sugerencias.value.length - 1); }
     else if (e.key === 'ArrowUp' && sugerencias.value.length) { e.preventDefault(); resaltada.value = Math.max(resaltada.value - 1, -1); }
     else if (e.key === 'Escape') sugerencias.value = [];
     else if (e.key === 'Enter') {
         e.preventDefault();
+        lectora.cancelar();
         const s = resaltada.value >= 0 ? sugerencias.value[resaltada.value] : null;
         agregar(s);
     }
@@ -302,7 +306,7 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
                         <div class="relative">
                             <ScanBarcode class="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-petroleo-300" />
                             <input ref="codigoRef" v-model="codigo" class="campo pl-10 text-lg" placeholder="Escaneá o escribí código / nombre" 
-                                @keydown="teclaProducto" @blur="cerrarSugerencias" />
+                                @keydown="teclaProducto" @input="lectora.entrada" @blur="cerrarSugerencias" />
                         </div>
                         <ul v-if="sugerencias.length" class="absolute inset-x-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-xl border border-petroleo-100 bg-white shadow-xl dark:border-petroleo-700 dark:bg-petroleo-900">
                             <li v-for="(s, k) in sugerencias" :key="s.tipo + s.id">
