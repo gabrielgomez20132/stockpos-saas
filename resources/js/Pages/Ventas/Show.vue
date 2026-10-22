@@ -284,7 +284,7 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
     </Encabezado>
 
     <!-- ===================================================== VENTA ABIERTA -->
-    <div v-if="editable" class="grid gap-5 pb-20 lg:grid-cols-[1fr_24rem] lg:pb-0">
+    <div v-if="editable" class="grid gap-5 lg:grid-cols-[1fr_24rem]">
         <div class="min-w-0 space-y-4">
             <div v-if="!cajaAbierta" class="flex items-center gap-3 rounded-xl border border-cartel-500 bg-cartel-300/20 px-4 py-3 text-sm">
                 <Lock class="size-5 text-cartel-700" /> La caja está cerrada. <Link href="/caja" class="font-semibold underline">Abrila</Link> para seguir con esta venta.
@@ -459,11 +459,6 @@ const abrirVentana = (url) => window.open(url, 'impresion', 'width=480,height=76
             </div>
         </aside>
 
-        <!-- barra fija en el celular -->
-        <div class="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 flex items-center gap-3 border-t border-petroleo-100 bg-white px-4 py-2.5 lg:hidden dark:border-petroleo-800 dark:bg-petroleo-900">
-            <span class="cifra flex-1 text-3xl">{{ plata(aPagar) }}</span>
-            <a href="#cobro" class="rounded-xl bg-cartel-500 px-5 py-2.5 font-bold text-petroleo-950">Cobrar</a>
-        </div>
     </div>
 
     <!-- ===================================================== VENTA COBRADA -->
