@@ -27,6 +27,7 @@ RUN cp /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini \
       echo 'memory_limit=512M'; \
       echo 'max_execution_time=120'; \
       echo 'expose_php=Off'; \
+      echo 'session.upload_progress.enabled=0'; \
       echo 'date.timezone=America/Argentina/Buenos_Aires'; \
     } > /usr/local/etc/php/conf.d/stokpos.ini
 

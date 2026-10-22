@@ -94,8 +94,16 @@ grep -q '^APP_URL=https://' .env   || echo "     AVISO: APP_URL deberia empezar 
 # ----------------------------------------------------------------------------- 3
 log "3/8  Contenedores (build + up, sin down -v)"
 docker network inspect mysql_default >/dev/null 2>&1 || die "No existe la red mysql_default (MySQL compartido del VPS)."
-docker compose up -d --build stokpos_app stokpos_nginx
+# --pull: baja siempre la ultima imagen oficial de PHP 8.3 (parches de seguridad)
+docker compose build --pull stokpos_app
+docker compose pull stokpos_nginx || true
+docker compose up -d stokpos_app stokpos_nginx
 wait_app
+PHPV="$(docker compose exec -T stokpos_app php -r 'echo PHP_VERSION;' | tr -d '\r')"
+echo "     PHP ${PHPV}"
+if ! docker compose exec -T stokpos_app php -r 'exit(version_compare(PHP_VERSION, "8.3.36", ">=") ? 0 : 1);'; then
+  echo "     AVISO: PHP ${PHPV} tiene vulnerabilidades criticas (CVE-2026-109618 y 109619). Hace falta 8.3.36 o mas nueva."
+fi
 if docker compose exec -T stokpos_nginx nginx -t >/dev/null 2>&1; then
   docker compose exec -T stokpos_nginx nginx -s reload
 else
