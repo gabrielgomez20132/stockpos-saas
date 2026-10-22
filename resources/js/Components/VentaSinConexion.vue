@@ -25,6 +25,8 @@ const ultima = ref(null);
 const verPendientes = ref(false);
 const pendientes = ref([]);
 const buscador = ref(null);
+const cobro = ref(null);
+const irACobrar = () => cobro.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 onMounted(async () => {
     cat.value = await catalogo(sid.value);
@@ -175,16 +177,16 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
 
 <template>
     <div class="fixed inset-0 z-[60] flex flex-col bg-papel dark:bg-petroleo-950">
-        <header class="flex flex-wrap items-center gap-3 border-b border-petroleo-100 bg-white px-4 py-3 dark:border-petroleo-800 dark:bg-petroleo-900">
-            <span class="flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold" :class="estado.conectado ? 'bg-green-100 text-entra' : 'bg-red-100 text-sale'">
-                <WifiOff v-if="!estado.conectado" class="size-4" /><Check v-else class="size-4" />{{ estado.conectado ? 'Conexión OK' : 'Sin conexión' }}
+        <header class="flex items-center gap-2 border-b border-petroleo-100 bg-white px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 sm:py-3 dark:border-petroleo-800 dark:bg-petroleo-900">
+            <span class="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold" :class="estado.conectado ? 'bg-green-100 text-entra' : 'bg-red-100 text-sale'" :title="estado.conectado ? 'Conexión OK' : 'Sin conexión'">
+                <WifiOff v-if="!estado.conectado" class="size-4" /><Check v-else class="size-4" /><span class="hidden sm:inline">{{ estado.conectado ? 'Conexión OK' : 'Sin conexión' }}</span>
             </span>
             <div class="min-w-0 flex-1">
-                <p class="font-bold">Venta sin conexión<span v-if="page.props.sucursal" class="font-normal text-petroleo-500"> · {{ page.props.sucursal.nombre }}</span></p>
-                <p class="text-xs text-petroleo-500">{{ cat ? `Catálogo guardado: ${cat.productos.length} productos · ${fh(cat.generado)}` : 'No hay catálogo guardado en este equipo.' }}</p>
+                <p class="truncate leading-tight font-bold">Venta sin conexión<span v-if="page.props.sucursal" class="font-normal text-petroleo-500"> · {{ page.props.sucursal.nombre }}</span></p>
+                <p class="truncate text-xs text-petroleo-500">{{ cat ? `${cat.productos.length} productos guardados · ${fh(cat.generado)}` : 'Sin catálogo guardado en este equipo' }}</p>
             </div>
-            <Boton tam="sm" :icono="ListChecks" @click="abrirPendientes">Pendientes ({{ estado.pendientes }})</Boton>
-            <Boton tam="sm" variante="fantasma" :icono="X" @click="emit('cerrar')">Salir</Boton>
+            <Boton tam="sm" :icono="ListChecks" class="shrink-0" :aria-label="`Pendientes (${estado.pendientes})`" @click="abrirPendientes"><span class="hidden sm:inline">Pendientes</span> ({{ estado.pendientes }})</Boton>
+            <Boton tam="sm" variante="fantasma" :icono="X" class="shrink-0" aria-label="Salir" @click="emit('cerrar')"><span class="hidden sm:inline">Salir</span></Boton>
         </header>
 
         <div v-if="!cat" class="grid flex-1 place-items-center p-6 text-center">
@@ -195,8 +197,8 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
             </div>
         </div>
 
-        <div v-else class="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[1fr_22rem]">
-            <section class="panel flex min-h-0 flex-col overflow-visible">
+        <div v-else class="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 lg:grid-cols-[1fr_22rem] lg:content-stretch">
+            <section class="panel flex flex-col overflow-visible lg:min-h-0">
                 <div class="relative border-b border-petroleo-100 p-3 dark:border-petroleo-800">
                     <div class="flex gap-2">
                         <input v-if="pan?.importe" v-model="imp" inputmode="decimal" class="campo w-28 shrink-0 text-center text-lg" placeholder="$ importe" aria-label="Vender por importe en pesos (opcional)" title="Opcional: escribí el importe (ej: 1500) y después el producto por peso" />
@@ -214,20 +216,20 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                         </li>
                     </ul>
                 </div>
-                <ul v-if="items.length" class="flex-1 divide-y divide-petroleo-50 overflow-y-auto dark:divide-petroleo-800">
-                    <li v-for="i in items" :key="i.id" class="flex flex-wrap items-center gap-3 px-4 py-2.5">
-                        <div class="min-w-0 flex-1 basis-40"><p class="truncate font-medium">{{ i.nombre }}</p>
+                <ul v-if="items.length" class="divide-y divide-petroleo-50 dark:divide-petroleo-800 lg:flex-1 lg:overflow-y-auto">
+                    <li v-for="i in items" :key="i.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+                        <div class="min-w-0 flex-1 basis-full sm:basis-40"><p class="truncate font-medium">{{ i.nombre }}</p>
                             <p class="text-xs" :class="numero(i.cantidad) > i.stock ? 'font-semibold text-sale' : 'text-petroleo-400'">{{ plata(i.monto) }} c/u · {{ numero(i.cantidad) > i.stock ? `solo quedan ${fmtCant(i, i.stock)}` : `stock ${fmtCant(i, i.stock)}` }}</p></div>
                         <div class="flex items-center rounded-xl border border-petroleo-200 dark:border-petroleo-700">
                             <button type="button" class="grid size-10 place-items-center" aria-label="Menos" @click="mover(i, -1)"><Minus class="size-4" /></button>
                             <input v-model="i.cantidad" inputmode="decimal" class="w-14 bg-transparent text-center font-semibold outline-none" />
                             <button type="button" class="grid size-10 place-items-center" aria-label="Más" @click="mover(i, 1)"><Plus class="size-4" /></button>
                         </div>
-                        <span class="cifra-suave w-24 text-right">{{ plata(sub(i)) }}</span>
+                        <span class="cifra-suave ml-auto w-24 text-right">{{ plata(sub(i)) }}</span>
                         <button type="button" class="p-1 text-petroleo-400 hover:text-sale" aria-label="Quitar" @click="items.splice(items.indexOf(i), 1)"><Trash2 class="size-4" /></button>
                     </li>
                 </ul>
-                <div v-else class="grid flex-1 place-items-center p-8 text-center text-sm text-petroleo-500">
+                <div v-else class="grid place-items-center p-6 text-center text-sm text-petroleo-500 sm:p-8 lg:flex-1">
                     <div v-if="ultima" class="space-y-3">
                         <p class="text-base font-semibold text-entra">Venta N° {{ ultima.numero }} guardada · {{ plata(ultima.total) }}</p>
                         <p v-if="ultima.vuelto" class="cifra text-3xl">Vuelto {{ plata(ultima.vuelto) }}</p>
@@ -237,7 +239,7 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                 </div>
             </section>
 
-            <aside class="panel h-fit space-y-4 p-5">
+            <aside ref="cobro" class="panel h-fit scroll-mt-3 space-y-4 p-4 sm:p-5">
                 <div class="flex items-end justify-between"><span class="text-sm text-petroleo-500">Total</span><span class="cifra text-5xl">{{ plata(aPagar) }}</span></div>
                 <p v-if="desc" class="text-right text-sm text-petroleo-500">{{ plata(total) }} − descuento {{ plata(desc) }}</p>
                 <div class="grid grid-cols-3 gap-2">
@@ -250,6 +252,11 @@ watch(() => estado.conectado, (c) => { if (c && !items.value.length && !verPendi
                 <Boton variante="principal" tam="lg" class="w-full" :icono="Check" :disabled="!items.length" :cargando="guardando" @click="cobrar">Cobrar y guardar</Boton>
                 <p class="text-xs text-petroleo-500">Sin conexión se vende a Consumidor final, con un medio de pago. Combos, fiado, vales y facturas: cuando vuelva la conexión.</p>
             </aside>
+        </div>
+
+        <div v-if="cat && items.length" class="flex items-center gap-3 border-t border-petroleo-100 bg-white px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:hidden dark:border-petroleo-800 dark:bg-petroleo-900">
+            <div class="min-w-0 flex-1"><p class="text-xs text-petroleo-500">{{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}</p><p class="cifra text-2xl leading-none">{{ plata(aPagar) }}</p></div>
+            <Boton variante="principal" :icono="Check" @click="irACobrar">Cobrar</Boton>
         </div>
 
         <div v-if="verPendientes" class="fixed inset-0 z-[70] grid place-items-center bg-petroleo-950/50 p-4" @click.self="verPendientes = false">
